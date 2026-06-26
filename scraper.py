@@ -17,8 +17,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 DB_PATH = "jobs.db"
-# Temporarily using generic keywords just to test if the pipeline is working
-KEYWORDS = ["software", "engineer", "developer", "backend", "frontend", "python"]
+KEYWORDS = []
 LOCATIONS = ["india", "bangalore", "hyderabad", "pune", "gurgaon", "noida", "remote"]
 
 def init_db():
@@ -32,8 +31,85 @@ def init_db():
             date_sent TIMESTAMP
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bot_state (
+            last_update_id INTEGER
+        )
+    ''')
     conn.commit()
     conn.close()
+
+import json
+import urllib.parse
+
+def load_keywords():
+    global KEYWORDS
+    try:
+        with open("keywords.json", "r") as f:
+            KEYWORDS = json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load keywords.json: {e}")
+        KEYWORDS = ["software", "engineer", "developer", "backend", "frontend", "python"]
+        
+def save_keywords():
+    try:
+        with open("keywords.json", "w") as f:
+            json.dump(KEYWORDS, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save keywords.json: {e}")
+
+def process_telegram_updates():
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT last_update_id FROM bot_state LIMIT 1')
+    row = cursor.fetchone()
+    last_update_id = row[0] if row else 0
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    params = {"offset": last_update_id + 1, "timeout": 5}
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        data = r.json()
+        if data.get("ok"):
+            updates = data.get("result", [])
+            for update in updates:
+                update_id = update["update_id"]
+                last_update_id = max(last_update_id, update_id)
+                msg = update.get("message", {})
+                text = msg.get("text", "").strip()
+                chat_id = msg.get("chat", {}).get("id")
+                
+                if text.startswith("/add "):
+                    kw = text[5:].strip().lower()
+                    if kw and kw not in KEYWORDS:
+                        KEYWORDS.append(kw)
+                        save_keywords()
+                        if chat_id:
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": f"Added: {kw}"})
+                elif text.startswith("/remove "):
+                    kw = text[8:].strip().lower()
+                    if kw in KEYWORDS:
+                        KEYWORDS.remove(kw)
+                        save_keywords()
+                        if chat_id:
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": f"Removed: {kw}"})
+                elif text.startswith("/list"):
+                    if chat_id:
+                        kw_list = ", ".join(KEYWORDS)
+                        requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", json={"chat_id": chat_id, "text": f"Active Keywords: {kw_list}"})
+                        
+            if updates:
+                if not row:
+                    cursor.execute('INSERT INTO bot_state (last_update_id) VALUES (?)', (last_update_id,))
+                else:
+                    cursor.execute('UPDATE bot_state SET last_update_id = ?', (last_update_id,))
+                conn.commit()
+    except Exception as e:
+        logger.error(f"Error processing telegram updates: {e}")
+    finally:
+        conn.close()
 
 def has_been_notified(url):
     conn = sqlite3.connect(DB_PATH)
@@ -168,32 +244,36 @@ async def process_playwright(targets, new_jobs):
         
         for target in targets:
             company = target.get("company")
-            url = target.get("url")
+            url_template = target.get("url")
             no_results_text = target.get("no_results_text", "0 results found").lower()
             
-            logger.info(f"Scraping Playwright target: {company}")
-            try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                await page.wait_for_timeout(5000)
-                
-                content = await page.content()
-                content_lower = content.lower()
-                
-                if no_results_text not in content_lower:
-                    if not has_been_notified(url):
-                        title = "API Gateway / Apigee Role (Automated URL Match)"
-                        logger.info(f"Adding to batch: {company} - {title}")
-                        new_jobs.append({"company": company, "title": title, "url": url})
-                else:
-                    logger.info(f"No results found for {company}.")
-            except Exception as e:
-                logger.error(f"Playwright error on {company}: {e}")
+            for keyword in KEYWORDS:
+                url = url_template.replace("{keyword}", urllib.parse.quote(keyword))
+                logger.info(f"Scraping Playwright target: {company} for keyword: {keyword}")
+                try:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_timeout(5000)
+                    
+                    content = await page.content()
+                    content_lower = content.lower()
+                    
+                    if no_results_text not in content_lower:
+                        if not has_been_notified(url):
+                            title = f"{keyword.capitalize()} Role (Automated URL Match)"
+                            logger.info(f"Adding to batch: {company} - {title}")
+                            new_jobs.append({"company": company, "title": title, "url": url})
+                    else:
+                        logger.info(f"No results found for {company} with keyword {keyword}.")
+                except Exception as e:
+                    logger.error(f"Playwright error on {company} for keyword {keyword}: {e}")
                 
         await browser.close()
 
 def main():
     logger.info("Starting Hybrid Job Scraper in Batch Mode...")
     init_db()
+    load_keywords()
+    process_telegram_updates()
     
     import json
     try:
