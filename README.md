@@ -5,7 +5,7 @@
     <strong>A self-hosted, full-stack Personal Applicant Tracking System (ATS).</strong>
     <br />
     <br />
-    <a href="https://koteshrv.github.io/job-scraper">View Demo</a>
+    <a href="https://koteshrv.github.io/job-tracker-pro">View Demo</a>
     ·
     <a href="#-features">Explore Features</a>
     ·
@@ -60,8 +60,8 @@ Job Tracker Pro is an open-source automation tool designed to streamline your jo
 ### 1. Configure Environment
 Clone the repository and set up your local environment:
 ```bash
-git clone https://github.com/koteshrv/job-scraper.git
-cd job-scraper
+git clone https://github.com/koteshrv/job-tracker-pro.git
+cd job-tracker-pro
 cp .env.example .env
 ```
 Open `.env` and fill in your details:
