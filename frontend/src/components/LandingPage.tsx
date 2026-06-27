@@ -1,6 +1,6 @@
 import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
-import { ShieldAlert, Zap, Lock, Sparkles, FileText, ArrowRight, Code2 } from "lucide-react"
+import { ShieldAlert, Zap, Lock, Sparkles, FileText, ArrowRight, Code2, Search, Target, Cpu, Heart } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export function LandingPage() {
@@ -59,24 +59,24 @@ export function LandingPage() {
 
   const features = [
     {
-      icon: <ShieldAlert className="w-6 h-6 text-red-400" />,
-      title: "Intelligent ATS Alignment",
-      description: "Ensure your true qualifications are recognized. CareerAgent dynamically aligns your resume with job requirements for accurate parsing by enterprise ATS platforms."
+      icon: <Search className="w-6 h-6 text-indigo-400" />,
+      title: "Automated Job Discovery",
+      description: "Scrapes job boards and company career pages in real-time to instantly find roles that match your exact profile and preferences."
+    },
+    {
+      icon: <Target className="w-6 h-6 text-red-400" />,
+      title: "AI Match Scoring",
+      description: "Instantly evaluates your profile against the job description, providing a definitive match score to help you prioritize your best opportunities."
     },
     {
       icon: <FileText className="w-6 h-6 text-blue-400" />,
-      title: "LaTeX Precision",
-      description: "Generates mathematically perfect PDFs via LaTeX. Ensuring 100% data fidelity when parsed by Taleo, Workday, and Greenhouse."
+      title: "Dynamic Resumes & Cover Letters",
+      description: "Automatically aligns your qualifications with the JD to compile professionally formatted LaTeX resumes and cover letters for flawless ATS parsing."
     },
     {
-      icon: <Lock className="w-6 h-6 text-emerald-400" />,
-      title: "100% Private (Local LLMs)",
-      description: "Plug in Ollama and run Llama-3 locally. Your career data never touches Google or OpenAI servers if you require strict privacy."
-    },
-    {
-      icon: <Zap className="w-6 h-6 text-amber-400" />,
-      title: "Multi-LLM Routing",
-      description: "Configure prioritized fallback chains (e.g. Gemini → Claude → OpenAI) for maximum reliability and rate-limit management."
+      icon: <Cpu className="w-6 h-6 text-emerald-400" />,
+      title: "Flexible AI Engine",
+      description: "Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini—or run 100% locally and privately with Ollama. The choice is yours."
     }
   ]
 
@@ -249,9 +249,25 @@ export function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-12 text-center text-sm text-zinc-500 bg-black">
-        <p>Built with React, FastAPI, and rigorous software engineering.</p>
-        <p className="mt-2">Open Source under the MIT License.</p>
+      <footer className="border-t border-white/5 py-12 bg-black">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center gap-6">
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <span>Built with</span>
+            <Heart className="w-4 h-4 text-red-500 fill-red-500/20" />
+            <span>for the open source community.</span>
+          </div>
+          
+          <div className="flex items-center justify-center gap-6 text-sm text-zinc-500 font-medium">
+            <a href="https://github.com/koteshrv/career-agent" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-white transition-colors">
+              <Code2 className="w-4 h-4" />
+              GitHub
+            </a>
+            <span className="w-1 h-1 rounded-full bg-zinc-800"></span>
+            <span className="hover:text-zinc-300 transition-colors">MIT License</span>
+            <span className="w-1 h-1 rounded-full bg-zinc-800"></span>
+            <span>© {new Date().getFullYear()} CareerAgent</span>
+          </div>
+        </div>
       </footer>
     </div>
   )

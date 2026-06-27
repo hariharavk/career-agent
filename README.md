@@ -17,15 +17,14 @@
 
 CareerAgent is an open-source, multi-LLM platform engineered to automate your job search while maintaining the highest standards of data privacy and professional formatting. 
 
-It finds jobs via Telegram/web scraping, extracts competencies using AI, perfectly aligns your qualifications with the job description, and compiles mathematically perfect LaTeX PDFs designed to bypass corporate Applicant Tracking Systems (ATS) cleanly.
+It finds jobs via custom Playwright scrapers (job boards, company pages), extracts competencies using AI, perfectly aligns your qualifications with the job description, and compiles professionally formatted LaTeX PDFs designed to be accurately parsed by corporate Applicant Tracking Systems (ATS).
 
 ## ✨ Features
 
-- **Intelligent ATS Alignment**: Ensure your true qualifications are recognized. CareerAgent dynamically aligns your resume with job requirements for accurate parsing by enterprise ATS platforms (Taleo, Workday, Greenhouse).
-- **LaTeX Precision**: Generates mathematically perfect PDFs via LaTeX. Ensuring 100% data fidelity when parsed by automated systems.
-- **100% Private (Local LLMs)**: Plug in Ollama and run Llama-3 locally. Your career data never touches Google or OpenAI servers if you require strict privacy.
-- **Multi-LLM Routing**: Configure prioritized fallback chains (e.g., Gemini → Claude → OpenAI) for maximum reliability and rate-limit management.
-- **Automated Pipeline**: A beautiful Kanban dashboard to track jobs from `NEW` to `APPLIED` to `INTERVIEWING`.
+- **Automated Job Discovery**: Scrapes job boards and company career pages in real-time to instantly find roles that match your exact profile and preferences.
+- **AI Match Scoring**: Instantly evaluates your profile against the job description, providing a definitive match score to help you prioritize your best opportunities.
+- **Dynamic Resumes & Cover Letters**: Automatically aligns your qualifications with the JD to compile professionally formatted LaTeX resumes and cover letters for flawless ATS parsing.
+- **Flexible AI Engine**: Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini—or run 100% locally and privately with Ollama. The choice is yours.
 
 ## 🚀 Getting Started
 

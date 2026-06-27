@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
+import { Routes, Route, Navigate, NavLink, Outlet, useLocation, useNavigate, Link } from "react-router-dom"
 import { KanbanBoard } from "./components/KanbanBoard"
 import { SettingsPage } from "./components/SettingsPage"
 import { HistoryPage } from "./components/HistoryPage"
@@ -56,19 +56,19 @@ function Layout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Navigation */}
         <aside className="w-64 border-r border-white/5 bg-black/40 hidden md:flex flex-col z-40">
-          <div className="h-20 flex items-center px-6 border-b border-white/5">
+          <Link to="/app/applications" className="h-20 flex items-center px-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer block">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.3)]">
                 <Zap className="w-5 h-5 text-white animate-pulse" />
               </div>
               <div>
-              <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 tracking-tight">
-                CareerAgent
-              </h1>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">AI Career Platform</p>
+                <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 tracking-tight">
+                  CareerAgent
+                </h1>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">AI Career Platform</p>
+              </div>
             </div>
-            </div>
-          </div>
+          </Link>
 
           <nav className="flex-1 px-4 py-8 space-y-2">
             {NAV.map(({ to, label, icon: Icon }) => (
@@ -123,7 +123,7 @@ function Layout() {
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={IS_DEMO ? <LandingPage /> : <Navigate to="/app/applications" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/app" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="/app/applications" replace />} />
@@ -133,7 +133,7 @@ function App() {
         <Route path="settings" element={<div className="flex-1 overflow-y-auto custom-scrollbar"><SettingsPage /></div>} />
         <Route path="*" element={<Navigate to="/app/applications" replace />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to={IS_DEMO ? "/" : "/app/applications"} replace />} />
     </Routes>
   )
 }
