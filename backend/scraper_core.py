@@ -1015,6 +1015,24 @@ def get_active_companies(db: Session) -> List[str]:
     except Exception:
         return []
 
+def commit_jobs(db: Session, jobs: list):
+    if not jobs:
+        return
+    unique_jobs = {}
+    for job in jobs:
+        unique_jobs[job["url"]] = job
+        
+    for url, job in unique_jobs.items():
+        logger.debug(f"  Committing: [{job.get('company')}] {job.get('title', '(no title)')} -> {url[:80]}")
+        record_job(db, job["company"], job["title"], url, job.get("location", ""))
+    
+    try:
+        db.commit()
+        logger.info(f"Successfully committed {len(unique_jobs)} new jobs to the database.")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to commit jobs: {e}")
+
 def run_scraper(db: Session):
     logger.info("=" * 60)
     logger.info("Starting Backend Scraper Engine...")
@@ -1022,7 +1040,7 @@ def run_scraper(db: Session):
     keywords = load_keywords(db)
     logger.info(f"Keywords: {keywords}")
     logger.debug(f"Loaded {len(targets)} total targets from targets.json")
-    new_jobs = []
+    all_new_jobs = []
     company_logs = []
     playwright_targets = []
 
@@ -1057,89 +1075,19 @@ def run_scraper(db: Session):
             links_found = company_logs[-1].get("jobs_found", 0)
             logger.info(f"[{company}] Done → {status}, {links_found} candidate links collected")
             
+        if new_jobs:
+            commit_jobs(db, new_jobs)
+            all_new_jobs.extend(new_jobs)
+            new_jobs.clear()
+            
     if playwright_targets:
         asyncio.run(process_playwright(db, playwright_targets, keywords, new_jobs, company_logs))
+        if new_jobs:
+            commit_jobs(db, new_jobs)
+            all_new_jobs.extend(new_jobs)
+            new_jobs.clear()
 
     # BULK AI FILTERING & COMMIT
-    logger.info(f"Total raw candidates collected across all companies: {len(new_jobs)}")
-    if new_jobs:
-        try:
-            settings = db.query(models.Settings).first()
-            from backend.crypto import decrypt_value
-            api_key = decrypt_value(settings.gemini_api_key) if settings and settings.gemini_api_key else None
-            
-            if api_key:
-                from backend.ai_agent import filter_job_links
-                
-                # Filter out jobs that don't need AI
-                jobs_for_ai = [j for j in new_jobs if not j.get("skip_ai")]
-                jobs_bypassing_ai = [j for j in new_jobs if j.get("skip_ai")]
-                
-                logger.info(f"Bypassing AI for {len(jobs_bypassing_ai)} clearly matched job links.")
-                logger.info(f"Sending {len(jobs_for_ai)} ambiguous links to Gemini for filtering.")
-                
-                # Split into chunks if candidate list is large.
-                # Each chunk = 1 API request. ~500 links ≈ 25K tokens, safe for all models.
-                CHUNK_SIZE = 500
-                keyword_str = ",".join(keywords)
-                
-                filtered_jobs = []
-                rejected_jobs = []
-                
-                if not jobs_for_ai:
-                    logger.info("No jobs require AI filtering.")
-                elif len(jobs_for_ai) <= CHUNK_SIZE:
-                    logger.info(f"Sending {len(jobs_for_ai)} candidates to AI Filter (single request)...")
-                    valid, rejected = filter_job_links(jobs_for_ai, keyword_str, api_key)
-                    filtered_jobs.extend(valid)
-                    rejected_jobs.extend(rejected)
-                else:
-                    chunks = [jobs_for_ai[i:i+CHUNK_SIZE] for i in range(0, len(jobs_for_ai), CHUNK_SIZE)]
-                    logger.info(f"Splitting {len(jobs_for_ai)} candidates into {len(chunks)} chunks of ~{CHUNK_SIZE} for AI Filter...")
-                    for idx, chunk in enumerate(chunks, 1):
-                        logger.info(f"  AI chunk {idx}/{len(chunks)}: sending {len(chunk)} candidates...")
-                        valid, rejected = filter_job_links(chunk, keyword_str, api_key)
-                        logger.info(f"  AI chunk {idx}/{len(chunks)}: retained {len(valid)} valid jobs, rejected {len(rejected)}")
-                        filtered_jobs.extend(valid)
-                        rejected_jobs.extend(rejected)
-                
-                logger.info(f"AI Filter complete: {len(filtered_jobs)} valid jobs retained from {len(jobs_for_ai)} AI-processed candidates")
-                
-                # Recombine
-                new_jobs = jobs_bypassing_ai + filtered_jobs
-            else:
-                logger.warning("No API key configured — skipping AI filter, saving all raw candidates")
-                rejected_jobs = []
-                
-            unique_jobs = {}
-            for job in new_jobs:
-                unique_jobs[job["url"]] = job
-                
-            unique_rejected = {}
-            for job in rejected_jobs:
-                # If it's valid via another path (e.g. overlap across companies), keep it valid.
-                if job["url"] not in unique_jobs:
-                    unique_rejected[job["url"]] = job
-            
-            logger.debug(f"After URL dedup: {len(unique_jobs)} valid jobs, {len(unique_rejected)} false positives to cache")
-            
-            # Commit valid jobs
-            for url, job in unique_jobs.items():
-                logger.debug(f"  Committing: [{job.get('company')}] {job.get('title', '(no title)')} -> {url[:80]}")
-                record_job(db, job["company"], job["title"], url, job.get("location", ""))
-                
-            # Commit rejected jobs so scraper doesn't fetch them again tomorrow
-            for url, job in unique_rejected.items():
-                db_job = record_job(db, job["company"], job["title"], url, job.get("location", ""))
-                # If it's a completely new DB entry (status is NEW or None before flush), mark it FALSE_POSITIVE so UI hides it
-                if db_job.status == "NEW" or db_job.status is None:
-                    db_job.status = "FALSE_POSITIVE"
-                    
-            db.commit()
-            logger.info(f"Successfully committed {len(unique_jobs)} new jobs to the database (and cached {len(unique_rejected)} false positives).")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Failed during AI filter/commit: {e}", exc_info=True)
-
+    logger.info(f"Total raw candidates collected across all companies: {len(all_new_jobs)}")
     logger.info("=" * 60)
-    return new_jobs, company_logs
+    return all_new_jobs, company_logs
