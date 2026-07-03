@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import type { Job } from "./KanbanBoard"
 import { Button } from "@/components/ui/button"
-import { Sparkles, MapPin, Calendar, ExternalLink, X, FileText, Trash2, Download, Globe } from "lucide-react"
+import { Sparkles, MapPin, Calendar, ExternalLink, X, FileText, Trash2, Download, Globe, MessageSquare } from "lucide-react"
 import { formatISTDate } from "@/lib/datetime"
 import { api } from "@/lib/api"
 import { useToast } from "./Toast"
@@ -17,6 +17,7 @@ interface JobModalProps {
 export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
   const { toast } = useToast()
   const [notes, setNotes] = useState(job.notes || "")
+  const [showNotes, setShowNotes] = useState(!!job.notes)
   const [description, setDescription] = useState(job.description || "")
   const [fetchingJD, setFetchingJD] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
@@ -198,6 +199,13 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className={`p-2 rounded-lg transition-colors flex items-center gap-1.5 ${showNotes ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+              title="Toggle Notes"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
             <a href={job.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
               <ExternalLink className="w-5 h-5" />
             </a>
@@ -229,24 +237,26 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
         <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
           
           {/* Notes Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Status & Notes</h3>
-            <textarea 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Ghosted, HR screening completed, passed OA..."
-              className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 resize-none"
-            />
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleSaveNotes} 
-                disabled={savingNotes || notes === (job.notes || "")}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white h-8 text-xs"
-              >
-                {savingNotes ? "Saving..." : "Save Notes"}
-              </Button>
+          {showNotes && (
+            <div className="space-y-3 bg-blue-950/10 border border-blue-900/30 p-4 rounded-xl animate-in slide-in-from-top-2 fade-in duration-200">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Status & Notes</h3>
+              <textarea 
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Ghosted, HR screening completed, passed OA..."
+                className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 resize-none"
+              />
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleSaveNotes} 
+                  disabled={savingNotes || notes === (job.notes || "")}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white h-8 text-xs"
+                >
+                  {savingNotes ? "Saving..." : "Save Notes"}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* JD Section */}
           <div className="space-y-3">
