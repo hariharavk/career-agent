@@ -348,45 +348,10 @@ def _get_custom_guidelines() -> str:
         db.close()
     return ""
 
-def generate_cover_letter(job_title: str, company: str, location: str = "", description: str = "", api_key: str = None, model_name: str = None, resume_name: str = None, generation_mode: str = "cloud_free") -> str:
+def generate_application_materials(job_title: str, company: str, location: str = "", description: str = "", api_key: str = None, model_name: str = None, resume_name: str = None, generation_mode: str = "cloud_free") -> dict:
     resume_text = extract_resume_text(resume_name)
     if not resume_text:
-        return "Error: Could not read resume. Please upload your resume first."
-        
-    from .database import SessionLocal
-    from . import models
-    db = SessionLocal()
-    settings = db.query(models.Settings).first()
-    db.close()
-
-    jd_context = f"\n\nJob Description Context:\n---\n{description}\n---\n" if description else ""
-    
-    # Inject user guidelines if configured
-    guidelines = _get_custom_guidelines()
-    custom_directive = f"\nCRITICAL USER PERSONAL DIRECTIVES/GUIDELINES:\n{guidelines}\n" if guidelines else ""
-
-    prompt = f"""
-You are an expert career coach and professional writer.
-Write a concise, modern, and highly persuasive cover letter for the role of {job_title} at {company} {f'located in {location}' if location else ''}.
-{jd_context}
-Use the following resume to highlight my most relevant skills and experience:
----
-{resume_text}
----
-
-Requirements:
-- Do NOT use generic placeholders like [Company Name] or [Your Name], deduce as much as possible from the resume.
-- Keep it under 3 paragraphs.
-- Be highly confident and direct.
-- Focus strictly on matching the resume skills to the likely requirements of {job_title}{' based on the provided Job Description context' if description else ''}.
-{custom_directive}
-"""
-    return _route_generation(prompt, generation_mode, settings, is_tex=False, is_cl=True)
-
-def generate_tailored_resume(job_title: str, company: str, location: str = "", description: str = "", api_key: str = None, model_name: str = None, resume_name: str = None, generation_mode: str = "cloud_free") -> str:
-    resume_text = extract_resume_text(resume_name)
-    if not resume_text:
-        return "Error: Could not read resume. Please upload your resume first."
+        return {"error": "Error: Could not read resume. Please upload your resume first."}
         
     from .database import SessionLocal
     from . import models
@@ -400,42 +365,69 @@ def generate_tailored_resume(job_title: str, company: str, location: str = "", d
     jd_context = f"\n\nJob Description Context:\n---\n{description}\n---\n" if description else ""
 
     escape_directive = (
-        "\nCRITICAL LATEX REQUIREMENT:\n"
-        "You MUST escape ALL special LaTeX characters. Replace "
+        "\nCRITICAL LATEX REQUIREMENT for the Resume:\n"
+        "You MUST escape ALL special LaTeX characters in the Tailored Resume section ONLY. Replace "
         "'&' with '\\&', '%' with '\\%', '$' with '\\$', '_' with '\\_'. "
         "Failure to escape these will crash the compiler!"
     ) if is_tex else ""
 
-    # Inject user guidelines if configured
     guidelines = _get_custom_guidelines()
     custom_directive = f"\nCRITICAL USER PERSONAL DIRECTIVES/GUIDELINES:\n{guidelines}\n" if guidelines else ""
 
-    shared = f"""You are an expert technical recruiter and professional resume writer.
-Rewrite and tailor the resume below for the role of {job_title} at {company} {f'located in {location}' if location else ''}.
+    prompt = f"""
+You are an expert technical recruiter, career coach, and professional writer.
+I need you to generate TWO things for the role of {job_title} at {company} {f'located in {location}' if location else ''}:
+1. A concise, modern, and highly persuasive Cover Letter.
+2. A tailored version of my original Resume.
 {jd_context}
 Original resume:
 ---
 {resume_text}
 ---
 
-Rules:
-- Keep ONLY truthful information from the original resume. Do NOT invent experience, employers, or dates.
-- CRITICAL: Do NOT inflate or escalate job titles. Keep the original job titles (e.g. 'Senior Software Engineer') exactly as they are in the original resume. Do NOT change them to 'Lead', 'Staff', or 'Manager' even if the target job description is for a higher level.
-- Reorder, reword, and emphasize the bullet points and skills most relevant to a {job_title} role{' as outlined in the Job Description' if description else ''}, but do NOT exaggerate responsibilities.
-- Rewrite the professional summary to target this specific role while remaining strictly honest to your true seniority.
-- Surface keywords a {job_title} job description and ATS would look for, but only where the resume genuinely supports them.
-{custom_directive}
-{escape_directive}"""
+Rules for Cover Letter:
+- Do NOT use generic placeholders like [Company Name] or [Your Name].
+- Keep it under 3 paragraphs, highly confident, and direct.
 
-    if is_tex:
-        prompt = shared + """
-- The original is a LaTeX document. Return a COMPLETE, COMPILABLE LaTeX document.
-- Preserve the original preamble, document class, packages, commands, and overall formatting/structure exactly. Only change the textual content to tailor it.
-- Output raw LaTeX only. Do NOT wrap it in markdown code fences or add commentary."""
-        return _route_generation(prompt, generation_mode, settings, is_tex=True, is_cl=False)
-    else:
-        prompt = shared + "\n- Return ONLY the updated markdown text."
-        return _route_generation(prompt, generation_mode, settings, is_tex=False, is_cl=False)
+Rules for Tailored Resume:
+- Keep ONLY truthful information from the original resume. Do NOT invent experience or dates.
+- CRITICAL: Do NOT inflate or escalate job titles. Keep the original job titles exactly as they are.
+- Reorder, reword, and emphasize the bullet points and skills most relevant to the role.
+- Rewrite the professional summary to target this specific role.
+{custom_directive}
+{escape_directive}
+{
+"- The original resume is a LaTeX document. The tailored resume MUST be a COMPLETE, COMPILABLE LaTeX document preserving the original preamble." if is_tex else "- The tailored resume MUST be in markdown format."
+}
+
+You MUST output your response exactly in the following format with the exact delimiters:
+
+[COVER_LETTER_START]
+<cover letter text here>
+[COVER_LETTER_END]
+
+[TAILORED_RESUME_START]
+<tailored resume text here>
+[TAILORED_RESUME_END]
+"""
+
+    result = _route_generation(prompt, generation_mode, settings, is_tex=False, is_cl=False)
+    
+    if result.startswith("Error"):
+        return {"error": result}
+        
+    import re
+    cl_match = re.search(r"\[COVER_LETTER_START\](.*?)\[COVER_LETTER_END\]", result, re.DOTALL)
+    tr_match = re.search(r"\[TAILORED_RESUME_START\](.*?)\[TAILORED_RESUME_END\]", result, re.DOTALL)
+    
+    cl = cl_match.group(1).strip() if cl_match else ""
+    tr = tr_match.group(1).strip() if tr_match else ""
+    
+    if not cl and not tr:
+        # Fallback if delimiters failed
+        return {"error": "Failed to parse AI output. AI did not use the requested delimiters. Raw output: " + result[:100]}
+        
+    return {"cover_letter": cl, "tailored_resume": tr}
 
 def extract_resume_keywords(resume_text: str, api_key: str = None, model_name: str = None) -> str:
     """Extracts a JSON array of up to 30 technical keywords from the resume text."""

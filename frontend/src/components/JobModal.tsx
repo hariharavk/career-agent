@@ -21,11 +21,9 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
   const [description, setDescription] = useState(job.description || "")
   const [fetchingJD, setFetchingJD] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
-  const [generatingCL, setGeneratingCL] = useState(false)
-  const [clError, setClError] = useState<string | null>(null)
+  const [generatingMaterials, setGeneratingMaterials] = useState(false)
+  const [materialsError, setMaterialsError] = useState<string | null>(null)
   const [tailoredResume, setTailoredResume] = useState<string | null>(job.tailored_resume || null)
-  const [generatingResume, setGeneratingResume] = useState(false)
-  const [resumeError, setResumeError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [resumes, setResumes] = useState<string[]>([])
   const [selectedResume, setSelectedResume] = useState<string>("")
@@ -95,35 +93,20 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
     }
   }
 
-  const handleGenerateCL = async () => {
-    setGeneratingCL(true)
-    setClError(null)
+  const handleGenerateMaterials = async () => {
+    setGeneratingMaterials(true)
+    setMaterialsError(null)
     try {
-      const res = await api.post(`/api/jobs/${job.id}/cover-letter`, {
-        resume: selectedResume || null,
-        generation_mode: localStorage.getItem("generation_mode") || "gemini"
-      })
-      onUpdate({...job, cover_letter: res.data.cover_letter})
-    } catch (e: any) {
-      setClError(e.response?.data?.detail || "Error generating cover letter. Make sure you uploaded a resume and configured a Gemini API key in Settings.")
-    }
-    setGeneratingCL(false)
-  }
-
-  const handleGenerateResume = async () => {
-    setGeneratingResume(true)
-    setResumeError(null)
-    try {
-      const res = await api.post(`/api/jobs/${job.id}/tailored-resume`, {
+      const res = await api.post(`/api/jobs/${job.id}/application-materials`, {
         resume: selectedResume || null,
         generation_mode: localStorage.getItem("generation_mode") || "gemini"
       })
       setTailoredResume(res.data.tailored_resume)
-      onUpdate({...job, tailored_resume: res.data.tailored_resume})
+      onUpdate({...job, cover_letter: res.data.cover_letter, tailored_resume: res.data.tailored_resume})
     } catch (e: any) {
-      setResumeError(e.response?.data?.detail || "Error generating tailored resume. Make sure you uploaded a resume and configured a Gemini API key in Settings.")
+      setMaterialsError(e.response?.data?.detail || "Error generating materials. Make sure you uploaded a resume and configured a Gemini API key.")
     }
-    setGeneratingResume(false)
+    setGeneratingMaterials(false)
   }
 
   const handleCopyResume = () => {
@@ -246,7 +229,26 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
                 placeholder="e.g. Ghosted, HR screening completed, passed OA..."
                 className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 resize-none"
               />
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button 
+                  onClick={async () => {
+                    setNotes("");
+                    setSavingNotes(true);
+                    try {
+                      const res = await api.put(`/api/jobs/${job.id}`, { notes: "" });
+                      onUpdate(res.data);
+                      toast("Notes cleared", "success");
+                    } catch (e) {
+                      toast("Error clearing notes", "error");
+                    }
+                    setSavingNotes(false);
+                    setShowNotes(false);
+                  }}
+                  disabled={savingNotes || !notes}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 h-8 text-xs"
+                >
+                  Clear Notes
+                </Button>
                 <Button 
                   onClick={handleSaveNotes} 
                   disabled={savingNotes || notes === (job.notes || "")}
@@ -262,13 +264,6 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Job Description</h3>
-              <Button 
-                onClick={handleFetchJD} 
-                disabled={fetchingJD}
-                className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs shadow-lg shadow-blue-500/20"
-              >
-                {fetchingJD ? "Fetching..." : "Fetch JD"}
-              </Button>
             </div>
             
             {job.match_score !== undefined && job.match_score !== null && (
@@ -312,41 +307,44 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" /> AI Cover Letter
+                <Sparkles className="w-4 h-4 text-purple-400" /> AI Application Materials
               </h3>
               <Button 
-                onClick={handleGenerateCL}
-                disabled={generatingCL}
+                onClick={handleGenerateMaterials}
+                disabled={generatingMaterials}
                 className="bg-purple-600 hover:bg-purple-500 text-white h-8 text-xs shadow-lg shadow-purple-500/20"
               >
-                {generatingCL ? "Generating..." : "Generate with AI"}
+                {generatingMaterials ? "Generating Both..." : "Generate Materials"}
               </Button>
             </div>
             
-            {clError && (
+            {materialsError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300 flex items-start gap-2">
                 <span className="font-semibold shrink-0">Error:</span>
-                <span className="break-words">{clError}</span>
+                <span className="break-words">{materialsError}</span>
               </div>
             )}
 
-            {job.cover_letter ? (
-              <div className="bg-zinc-900/50 border border-purple-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed">
-                {job.cover_letter}
-              </div>
-            ) : (
-              <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm">
-                No cover letter generated yet.
-              </div>
-            )}
+            <div className="space-y-4">
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cover Letter</h4>
+              {job.cover_letter ? (
+                <div className="bg-zinc-900/50 border border-purple-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed">
+                  {job.cover_letter}
+                </div>
+              ) : (
+                <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm">
+                  No cover letter generated yet.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* AI Tailored Resume Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-400" /> AI Tailored Resume
-              </h3>
+              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-400" /> Tailored Resume
+              </h4>
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 {tailoredResume && (
                   <>
@@ -365,22 +363,8 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
                     </Button>
                   </>
                 )}
-                <Button
-                  onClick={handleGenerateResume}
-                  disabled={generatingResume}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 text-xs shadow-lg shadow-emerald-500/20"
-                >
-                  {generatingResume ? "Tailoring..." : "Tailor with AI"}
-                </Button>
               </div>
             </div>
-
-            {resumeError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300 flex items-start gap-2">
-                <span className="font-semibold shrink-0">Error:</span>
-                <span className="break-words">{resumeError}</span>
-              </div>
-            )}
 
             {tailoredResume ? (
               <div className="bg-zinc-900/50 border border-emerald-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">
@@ -388,7 +372,7 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
               </div>
             ) : (
               <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm">
-                Generate a version of your resume re-tailored for this role.
+                Generate application materials to see your tailored resume.
               </div>
             )}
           </div>

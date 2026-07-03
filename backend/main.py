@@ -385,41 +385,27 @@ def remove_resume(name: str):
         raise HTTPException(status_code=404, detail="Resume not found")
     return {"deleted": name, "resumes": ai_agent.list_resumes()}
 
-@app.post("/api/jobs/{job_id}/cover-letter")
-def generate_cl_for_job(job_id: int, req: schemas.GenerationRequest, db: Session = Depends(get_db)):
+@app.post("/api/jobs/{job_id}/application-materials")
+def generate_application_materials_for_job(job_id: int, req: schemas.GenerationRequest, db: Session = Depends(get_db)):
     db_job = crud.get_job(db, job_id)
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
 
     settings = crud.get_settings(db)
-    cl_text = ai_agent.generate_cover_letter(
+    result = ai_agent.generate_application_materials(
         db_job.title, db_job.company, db_job.location or "", db_job.description or "",
         api_key=settings.gemini_api_key, model_name=settings.gemini_model, resume_name=req.resume,
         generation_mode=req.generation_mode
     )
-    if cl_text.startswith("Error"):
-        raise HTTPException(status_code=400, detail=cl_text)
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
 
-    db_job = crud.update_job_status(db, job_id, schemas.JobUpdate(cover_letter=cl_text))
-    return {"cover_letter": cl_text}
-
-@app.post("/api/jobs/{job_id}/tailored-resume")
-def generate_resume_for_job(job_id: int, req: schemas.GenerationRequest, db: Session = Depends(get_db)):
-    db_job = crud.get_job(db, job_id)
-    if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    settings = crud.get_settings(db)
-    resume_text = ai_agent.generate_tailored_resume(
-        db_job.title, db_job.company, db_job.location or "", db_job.description or "",
-        api_key=settings.gemini_api_key, model_name=settings.gemini_model, resume_name=req.resume,
-        generation_mode=req.generation_mode
-    )
-    if resume_text.startswith("Error"):
-        raise HTTPException(status_code=400, detail=resume_text)
-
-    crud.update_job_status(db, job_id, schemas.JobUpdate(tailored_resume=resume_text))
-    return {"tailored_resume": resume_text}
+    db_job = crud.update_job_status(db, job_id, schemas.JobUpdate(
+        cover_letter=result["cover_letter"],
+        tailored_resume=result["tailored_resume"]
+    ))
+    return {"cover_letter": result["cover_letter"], "tailored_resume": result["tailored_resume"]}
 
 @app.post("/api/generate/on-demand")
 def generate_on_demand(req: schemas.OnDemandRequest, db: Session = Depends(get_db)):
