@@ -1138,6 +1138,14 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
                 db_job.match_score = score
                 db_job.match_reason = reason
                 
+                ext_id = res.get("external_id")
+                if ext_id:
+                    db_job.external_id = ext_id
+                    
+                yoe = res.get("yoe")
+                if yoe:
+                    db_job.yoe = yoe
+                
                 # Save the cleaned JD
                 cleaned_jd = res.get("cleaned_job_description")
                 if cleaned_jd:

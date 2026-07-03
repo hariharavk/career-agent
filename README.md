@@ -15,16 +15,17 @@
 
 <br/>
 
-CareerAgent is an open-source, multi-LLM platform engineered to automate your job search while maintaining the highest standards of data privacy and professional formatting. 
+CareerAgent is an open-source, multi-LLM platform built specifically for software engineers and IT professionals looking to make a switch. It automates your job hunt, perfectly tailors your resume to beat the ATS, and drafts personalized cold emails to land referrals—saving you hours of effort after your shift.
 
-It finds jobs via custom Playwright scrapers (job boards, company pages), extracts competencies using AI, perfectly aligns your qualifications with the job description, and compiles professionally formatted LaTeX PDFs designed to be accurately parsed by corporate Applicant Tracking Systems (ATS).
+It quietly tracks job boards and company pages in the background, extracts competencies using AI, and compiles professionally formatted LaTeX PDFs designed to be accurately parsed by corporate Applicant Tracking Systems.
 
 ## ✨ Features
 
-- **Automated Job Discovery**: Scrapes job boards and company career pages in real-time to instantly find roles that match your exact profile and preferences.
-- **Chrome Extension Integration**: Manually add and parse jobs directly from LinkedIn, Naukri, and other external boards with a single click using the included browser extension.
+- **Automated Job Discovery**: Quietly scrapes job boards and career pages in the background, ensuring you never miss a newly posted position.
+- **Kanban Pipeline**: Organize your job search visually. Drag and drop jobs across columns (New, Applied, Interviewing, Rejected) to track your pipeline at a glance.
 - **AI Match Scoring**: Instantly evaluates your profile against the job description, providing a definitive match score to help you prioritize your best opportunities.
-- **Dynamic Resumes & Cover Letters**: Automatically aligns your qualifications with the JD to compile professionally formatted LaTeX resumes and cover letters for flawless ATS parsing.
+- **1-Click Application Materials**: Generates tailored cover letters, concise cold emails/LinkedIn DMs, and compiles pristine LaTeX resumes directly into PDFs.
+- **Telegram Alerts & Chrome Extension**: Get instant push notifications for high-match jobs, and use the companion browser extension to one-click save jobs directly from LinkedIn and Naukri.
 - **Flexible AI Engine**: Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini—or run 100% locally and privately with Ollama. The choice is yours.
 
 ## 🏢 Supported Companies (43+)

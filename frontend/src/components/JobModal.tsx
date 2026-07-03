@@ -110,6 +110,13 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
     setTimeout(() => setCopiedEmail(false), 1500)
   }
 
+  const handleOpenEmail = () => {
+    if (!job.cold_email) return
+    const subject = encodeURIComponent(`Application for ${job.title} at ${job.company}`)
+    const body = encodeURIComponent(job.cold_email)
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank')
+  }
+
   const slug = `Hari_${job.company}_${job.title}`.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "")
 
   const downloadFile = (content: string, filename: string, mime: string) => {
@@ -170,6 +177,16 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
                     <MapPin className="w-3.5 h-3.5" />
                   )}
                   {job.location}
+                </span>
+              )}
+              {job.external_id && (
+                <span className="flex items-center gap-1 text-zinc-300">
+                  <span className="font-semibold text-zinc-500">ID:</span> {job.external_id}
+                </span>
+              )}
+              {job.yoe && (
+                <span className="flex items-center gap-1 text-zinc-300">
+                  <span className="font-semibold text-zinc-500">Exp:</span> {job.yoe}
                 </span>
               )}
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatISTDate(job.created_at, true)}</span>
@@ -350,9 +367,14 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cold Email / LinkedIn DM</h4>
                   {job.cold_email && (
-                    <Button onClick={handleCopyEmail} className="bg-zinc-800 hover:bg-zinc-700 text-white h-7 text-xs px-3">
-                      {copiedEmail ? "Copied!" : "Copy"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={handleCopyEmail} className="bg-zinc-800 hover:bg-zinc-700 text-white h-7 text-xs px-3">
+                        {copiedEmail ? "Copied!" : "Copy"}
+                      </Button>
+                      <Button onClick={handleOpenEmail} className="bg-blue-600 hover:bg-blue-500 text-white h-7 text-xs px-3 shadow-lg shadow-blue-500/20 flex items-center gap-1">
+                        Open in Email
+                      </Button>
+                    </div>
                   )}
                 </div>
                 {job.cold_email ? (
@@ -401,7 +423,7 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
               </div>
             ) : (
               <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm">
-                Generate application materials to see your tailored resume.
+                Generate application materials to instantly create a tailored LaTeX resume and compile it to a ready-to-submit PDF.
               </div>
             )}
           </div>

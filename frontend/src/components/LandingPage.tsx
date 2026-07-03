@@ -1,82 +1,44 @@
 import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
-import { Zap, Sparkles, FileText, ArrowRight, Code2, Search, Target, Cpu, Heart } from "lucide-react"
+import { Zap, Sparkles, FileText, ArrowRight, Code2, Search, Target, Cpu, Heart, KanbanSquare, BellRing } from "lucide-react"
 import { useState, useEffect } from "react"
 
 export function LandingPage() {
   const navigate = useNavigate()
-  const [terminalText, setTerminalText] = useState("")
-
   const handleEnter = () => {
     navigate("/app/applications")
   }
-
-  useEffect(() => {
-    const logs = [
-      "Initializing CareerAgent Platform...",
-      "Loading local Ollama Llama-3 model... [OK]",
-      "Analyzing Job Description for \"Backend Engineer\"...",
-      "Extracting required competencies... [PostgreSQL, System Design, gRPC]",
-      "Aligning candidate qualifications...",
-      "Compiling pristine LaTeX resume...",
-      "PDF Generated successfully. ATS Compatibility: 98%"
-    ]
-    
-    let currentLog = 0
-    let currentChar = 0
-    let text = ""
-    let timeout: ReturnType<typeof setTimeout>
-
-    const typeWriter = () => {
-      if (currentLog < logs.length) {
-        if (currentChar < logs[currentLog].length) {
-          text += logs[currentLog].charAt(currentChar)
-          setTerminalText(text)
-          currentChar++
-          timeout = setTimeout(typeWriter, Math.random() * 30 + 10)
-        } else {
-          text += "\n"
-          setTerminalText(text)
-          currentChar = 0
-          currentLog++
-          timeout = setTimeout(typeWriter, 800)
-        }
-      } else {
-        // Loop it
-        timeout = setTimeout(() => {
-          text = ""
-          setTerminalText(text)
-          currentLog = 0
-          currentChar = 0
-          typeWriter()
-        }, 5000)
-      }
-    }
-
-    timeout = setTimeout(typeWriter, 1000)
-    return () => clearTimeout(timeout)
-  }, [])
 
   const features = [
     {
       icon: <Search className="w-6 h-6 text-indigo-400" />,
       title: "Automated Job Discovery",
-      description: "Scrapes job boards and company career pages in real-time to instantly find roles that match your exact profile and preferences."
+      description: "Quietly runs Playwright scrapers in the background across job boards and company ATS portals, ensuring you never miss a newly posted role."
     },
     {
       icon: <Target className="w-6 h-6 text-red-400" />,
       title: "AI Match Scoring",
-      description: "Instantly evaluates your profile against the job description, providing a definitive match score to help you prioritize your best opportunities."
+      description: "Instantly evaluates your exact qualifications against the raw Job Description, generating a definitive 0-100 match score and fit analysis."
     },
     {
       icon: <FileText className="w-6 h-6 text-blue-400" />,
-      title: "Dynamic Resumes & Cover Letters",
-      description: "Automatically aligns your qualifications with the JD to compile professionally formatted LaTeX resumes and cover letters for flawless ATS parsing."
+      title: "1-Click Application Materials",
+      description: "Programmatically generates tailored cover letters, referral emails, and natively compiles ATS-friendly LaTeX resumes into PDFs with a single click."
     },
     {
       icon: <Cpu className="w-6 h-6 text-emerald-400" />,
       title: "Flexible AI Engine",
-      description: "Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini—or run 100% locally and privately with Ollama. The choice is yours."
+      description: "Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini APIs—or run 100% locally and privately with Ollama models."
+    },
+    {
+      icon: <KanbanSquare className="w-6 h-6 text-orange-400" />,
+      title: "Kanban Pipeline",
+      description: "Organize your job search visually. Drag and drop jobs across a Kanban board (New, Applied, Interviewing, Rejected) to track your entire pipeline at a glance."
+    },
+    {
+      icon: <BellRing className="w-6 h-6 text-yellow-400" />,
+      title: "Telegram Alerts & Chrome Extension",
+      description: "Receive instant push notifications via Telegram for high-match jobs, and use the companion extension to 1-click save roles directly from external job boards."
     }
   ]
 
@@ -138,7 +100,7 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]"
               >
-                Optimize your career trajectory.<br />
+                Make your next big career switch.<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Powered by AI.</span>
               </motion.h1>
               
@@ -148,7 +110,7 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-lg text-zinc-400 mb-8 leading-relaxed max-w-xl"
               >
-                CareerAgent is an open-source, multi-LLM platform that automates job discovery, perfectly aligns your resume with job requirements, and generates pristine LaTeX PDFs designed for flawless parsing by modern ATS systems.
+                CareerAgent is a sophisticated automation platform built for ambitious IT professionals. It replaces the exhausting manual job hunt with an intelligent engine that scrapes target companies, evaluates your precise fit using multi-model AI, and programmatically compiles ATS-optimized LaTeX resumes and personalized referral emails—acting as your 24/7 personal career agent.
               </motion.p>
               
               <motion.div 
@@ -174,43 +136,32 @@ export function LandingPage() {
               </motion.div>
             </div>
 
-            {/* Right side animated Agent Feed */}
+            {/* Right side AI Match Card */}
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.4 }}
               className="hidden lg:block relative"
             >
-              {/* Agent Activity Window */}
-              <div className="bg-[#0c0d12]/90 border border-white/10 rounded-xl shadow-2xl overflow-hidden relative backdrop-blur-md">
-                <div className="h-12 bg-white/[0.02] border-b border-white/5 flex items-center px-4 justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-blue-500/20 flex items-center justify-center">
-                      <Sparkles className="w-2.5 h-2.5 text-blue-400" />
+              <div className="bg-[#0c0d12]/90 border border-white/10 rounded-2xl shadow-2xl overflow-hidden relative backdrop-blur-md p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <Target className="w-5 h-5 text-blue-400" />
                     </div>
-                    <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Live Agent Activity</span>
+                    <div>
+                      <h3 className="font-bold text-white text-lg">Senior Backend Engineer</h3>
+                      <p className="text-zinc-400 text-sm">Stripe • Remote</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] font-medium text-green-400">Processing</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-200">98%</span>
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-500/70 font-semibold">Match Score</span>
                   </div>
                 </div>
-                <div className="p-6 font-mono text-sm leading-relaxed min-h-[320px] text-zinc-300">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1 shrink-0">
-                        <Zap className="w-4 h-4 text-amber-400" />
-                      </div>
-                      <div className="flex-1 whitespace-pre-wrap">
-                        {terminalText}
-                        <motion.span 
-                          animate={{ opacity: [1, 0] }} 
-                          transition={{ repeat: Infinity, duration: 0.8 }}
-                          className="inline-block w-1.5 h-3.5 bg-blue-400 align-middle ml-1 rounded-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-sm text-blue-200 leading-relaxed mt-4">
+                  <span className="font-semibold text-blue-400">AI Analysis:</span> The candidate is a perfect fit for this role, demonstrating deep expertise in building high-scale distributed systems and managing complex cloud infrastructure migrations.
                 </div>
               </div>
             </motion.div>
@@ -227,7 +178,7 @@ export function LandingPage() {
             <p className="text-zinc-400 max-w-2xl mx-auto">A comprehensive suite of tools to automate your job search while maintaining the highest standards of data privacy and professional formatting.</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f, i) => (
               <motion.div 
                 key={i}
@@ -251,10 +202,8 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 bg-black">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center gap-6">
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <span>Built with</span>
-            <Heart className="w-4 h-4 text-red-500 fill-red-500/20" />
-            <span>for the open source community.</span>
+          <div className="flex items-center justify-center text-sm text-zinc-400">
+            Built with <span className="mx-1.5">❤️</span> by <a href="https://github.com/koteshrv" target="_blank" rel="noopener noreferrer" className="text-white font-semibold hover:underline ml-1">Hari</a>.
           </div>
           
           <div className="flex items-center justify-center gap-6 text-sm text-zinc-500 font-medium">

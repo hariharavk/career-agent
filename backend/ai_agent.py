@@ -392,6 +392,7 @@ Rules for Cover Letter:
 
 Rules for Cold Email / LinkedIn DM:
 - Keep it concise but punchy (under 200 words).
+- Do NOT include a "Subject:" line in the text. Start directly with the greeting.
 - Focus on one strong hook relating my experience to their specific job description.
 - Include a clear call to action (e.g. asking for a brief chat).
 - Sign off as "Hari Karri" or "Hari".
@@ -617,7 +618,9 @@ Evaluate the following batch of job postings against the provided candidate resu
 For each job, determine:
 1. match_score (0-100)
 2. match_reason (1-2 sentences)
-3. cleaned_job_description (Extract ONLY the core job description from the raw text, removing cookies, headers, footers, etc. Structure it nicely in Markdown).
+3. external_id (Extract the external job ID/requisition ID from the JD, if present. If not, return null.)
+4. yoe (Extract the expected years of experience from the JD, if present, e.g. "3-5 years" or "5+". If not, return null.)
+5. cleaned_job_description (Extract ONLY the core job description from the raw text, removing cookies, headers, footers, etc. Structure it nicely in Markdown).
 
 Return ONLY a valid JSON array of objects. Do not use markdown backticks.
 
@@ -633,8 +636,8 @@ Jobs Batch:
 
 Expected JSON format:
 [
-  {{"id": 0, "match_score": 85, "match_reason": "Strong match with Python.", "cleaned_job_description": "## Role\\n..."}},
-  {{"id": 1, "match_score": 20, "match_reason": "Missing Java.", "cleaned_job_description": "## Role\\n..."}}
+  {{"id": 0, "match_score": 85, "match_reason": "Strong match with Python.", "external_id": "REQ-1234", "yoe": "3-5 years", "cleaned_job_description": "## Role\\n..."}},
+  {{"id": 1, "match_score": 20, "match_reason": "Missing Java.", "external_id": null, "yoe": "8+", "cleaned_job_description": "## Role\\n..."}}
 ]
 """
     try:

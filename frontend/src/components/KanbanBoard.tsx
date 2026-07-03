@@ -23,6 +23,8 @@ export type Job = {
   cold_email?: string
   match_score?: number
   match_reason?: string
+  external_id?: string
+  yoe?: string
   created_at: string
   applied_at?: string
 }

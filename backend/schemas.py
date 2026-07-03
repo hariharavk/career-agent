@@ -35,6 +35,8 @@ class JobUpdate(BaseModel):
     cold_email: Optional[str] = None
     match_score: Optional[int] = None
     match_reason: Optional[str] = None
+    external_id: Optional[str] = None
+    yoe: Optional[str] = None
     applied_at: Optional[datetime] = None
 
 class Job(JobBase):
@@ -46,6 +48,8 @@ class Job(JobBase):
     cold_email: Optional[str] = None
     match_score: Optional[int] = None
     match_reason: Optional[str] = None
+    external_id: Optional[str] = None
+    yoe: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     applied_at: Optional[datetime] = None
