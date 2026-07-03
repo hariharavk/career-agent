@@ -9,8 +9,9 @@ import {
 // return static mock data so the site works without a running backend.
 export const IS_DEMO = import.meta.env.VITE_DEMO_MODE === "true"
 
-// Centralized API base URL. Override at build/run time with VITE_API_URL.
-export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000"
+// Centralized API base URL. Defaulting to empty string allows relative URLs
+// which makes the frontend agnostic to the host port in Docker via reverse proxy.
+export const API_BASE = import.meta.env.VITE_API_URL || ""
 
 export const api = axios.create({ baseURL: API_BASE })
 
