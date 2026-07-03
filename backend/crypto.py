@@ -2,7 +2,12 @@ import os
 from cryptography.fernet import Fernet
 from pathlib import Path
 
-KEY_FILE = Path(__file__).parent / ".encryption_key"
+# Support Docker volume persistence for the encryption key
+DATA_DIR = Path("/app/data")
+if DATA_DIR.exists():
+    KEY_FILE = DATA_DIR / ".encryption_key"
+else:
+    KEY_FILE = Path(__file__).parent / ".encryption_key"
 
 def _get_or_create_key() -> bytes:
     if KEY_FILE.exists():

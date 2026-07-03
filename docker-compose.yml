@@ -2,30 +2,25 @@ version: '3.8'
 
 services:
   backend:
-    build: 
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/koteshrv/career-agent-backend:main
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app/backend
-      - ./jobs.db:/app/jobs.db
-      - ./targets.json:/app/targets.json
-      - ./keywords.json:/app/keywords.json
+      # Mount a single data directory for all databases and encryption keys
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
-      # Auth credentials — change these before exposing the app.
+      # Auth credentials — change these before exposing the app to the internet!
       - APP_USERNAME=${APP_USERNAME:-admin}
       - APP_PASSWORD=${APP_PASSWORD:-admin}
-      # Optional: explicit token-signing secret (defaults to the encryption key).
       - AUTH_SECRET=${AUTH_SECRET:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Tell the app to save the SQLite database in the mapped data folder
+      - DATABASE_URL=sqlite:////app/data/jobs.db
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/koteshrv/career-agent-frontend:main
     ports:
       - "5173:80"
     depends_on:

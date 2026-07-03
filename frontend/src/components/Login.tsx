@@ -28,12 +28,13 @@ export function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 text-zinc-100">
       <div className="w-full max-w-sm bg-[#12141a] border border-white/10 rounded-2xl shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.3)] mb-3">
-            <Zap className="w-6 h-6 text-white animate-pulse" />
+        <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Zap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-white">CareerAgent</h1>
-          <p className="text-xs text-zinc-500 uppercase tracking-widest font-semibold">AI Career Platform</p>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-white tracking-tight">CareerAgent</h1>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -64,10 +64,7 @@ function Layout() {
                 <Zap className="w-5 h-5 text-white animate-pulse" />
               </div>
               <div>
-                <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400 tracking-tight">
-                  CareerAgent
-                </h1>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">AI Career Platform</p>
+                <h1 className="text-xl font-bold tracking-tight text-white leading-none">CareerAgent</h1>
               </div>
             </div>
           </Link>

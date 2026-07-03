@@ -3,8 +3,8 @@
   
   # CareerAgent
   
-  **Enterprise-grade AI Career Platform.**  
-  Automates job discovery, dynamically aligns resumes to JD requirements, and generates pristine LaTeX PDFs for flawless ATS parsing.
+  **Your personal AI career agent.**  
+  Scrapes job boards, evaluates match scores using AI, and generates tailored ATS-friendly resumes and referral emails.
 
   [![GitHub Stars](https://img.shields.io/github/stars/koteshrv/career-agent.svg?style=for-the-badge&color=blue)](https://github.com/koteshrv/career-agent/stargazers)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
@@ -61,36 +61,46 @@ CareerAgent natively integrates with the career portals and ATS systems (Greenho
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Method 1: Docker (Recommended)
+The easiest way to run CareerAgent is using our pre-built GitHub Container Registry (GHCR) images. You don't need to install Node or Python!
+
+```bash
+# 1. Download the docker-compose file
+curl -O https://raw.githubusercontent.com/koteshrv/career-agent/main/docker-compose.yml
+
+# 2. Start the application in the background
+docker compose up -d
+```
+*Visit `http://localhost:5173` to access the dashboard. Your database and files will be safely stored in the local directory via Docker volumes.*
+
+---
+
+### Method 2: Manual Installation (For Developers)
+
+#### Prerequisites
 - Node.js (v20+)
 - Python (3.11+)
 - API Keys (OpenAI, Gemini, Anthropic) or local Ollama running.
 
-### 1. Start the Backend (FastAPI)
+#### Setup & Run
+First, install the required Python and Node dependencies:
+
 ```bash
-cd backend
+# 1. Setup Python Backend
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
-# Start the server
-uvicorn main:app --reload --port 8000
-```
-
-### 2. Start the Frontend (React + Vite)
-```bash
+# 2. Setup Node Frontend
 cd frontend
 npm install
-npm run dev
-```
+cd ..
 
-Visit `http://localhost:5173` to access the CareerAgent dashboard.
+# 3. Run the full application (Frontend + Backend APIs)
+./start.sh
 
-## 📸 Demo Mode
-Want to see the UI without running a backend? You can run the frontend in demo mode with mocked data:
-```bash
-cd frontend
-VITE_DEMO_MODE=true npm run dev
+# Or, run the UI in Demo Mode (mocked data, no backend required)
+./demo.sh
 ```
 
 ## 🤝 Contributing

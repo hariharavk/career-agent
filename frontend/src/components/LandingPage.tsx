@@ -90,7 +90,7 @@ export function LandingPage() {
                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold mb-6 uppercase tracking-widest"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Enterprise-Grade AI
+                Advanced AI Engine
               </motion.div>
               
               <motion.h1 
