@@ -3,6 +3,9 @@ FROM mcr.microsoft.com/playwright:v1.44.0-jammy
 
 WORKDIR /app
 
+# Prevent tzdata from prompting for geographic area and hanging the build
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install Python, pip, Xvfb, and LaTeX dependencies
 RUN apt-get update && apt-get install -y python3 python3-pip xvfb texlive-latex-base texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra && rm -rf /var/lib/apt/lists/*
 
