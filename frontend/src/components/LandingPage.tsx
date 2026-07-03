@@ -27,8 +27,8 @@ export function LandingPage() {
     },
     {
       icon: <Cpu className="w-6 h-6 text-emerald-400" />,
-      title: "Flexible AI Engine",
-      description: "Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini APIs—or run 100% locally and privately with Ollama models."
+      title: "Bring Your Own AI (Free or Paid)",
+      description: "Use any AI you prefer! Bring your own OpenAI or Anthropic keys, or use 100% Free AI with a Google API key (we safely manage rate limits for Gemma and Gemini). Or run 100% privately with local Ollama models."
     },
     {
       icon: <KanbanSquare className="w-6 h-6 text-orange-400" />,
@@ -110,7 +110,7 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-lg text-zinc-400 mb-8 leading-relaxed max-w-xl"
               >
-                CareerAgent is a sophisticated automation platform built for ambitious IT professionals. It replaces the exhausting manual job hunt with an intelligent engine that scrapes target companies, evaluates your precise fit using multi-model AI, and programmatically compiles ATS-optimized LaTeX resumes and personalized referral emails—acting as your 24/7 personal career agent.
+                CareerAgent is a sophisticated, 100% free automation platform built for ambitious IT professionals. It replaces the exhausting manual job hunt with an intelligent engine that scrapes target companies, evaluates your precise fit using your choice of AI (bring your own OpenAI/Anthropic keys, or use Google Gemini/Gemma for free), and programmatically compiles ATS-optimized LaTeX resumes and personalized referral emails—acting as your personal career agent for $0.
               </motion.p>
               
               <motion.div 

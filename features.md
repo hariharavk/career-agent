@@ -8,6 +8,7 @@ CareerAgent is an open-source, AI-powered job search automation platform built s
 - **Companion Chrome Extension**: A lightweight browser extension allowing 1-click job saving directly from job boards like LinkedIn and Indeed directly into your pipeline.
 
 ## 2. Enterprise-Grade AI Engine
+- **Bring Your Own Keys (Free or Paid)**: Use any AI you prefer! Bring your own OpenAI or Anthropic keys, or use **100% Free AI Processing** with a Google AI Studio key. CareerAgent natively manages Google's strict free tier rate limits (**15 RPM / 1500 RPD for Gemma 4**, **15 RPM / 500 RPD for Gemini 3.1 Flash Lite**, **5 RPM / 20 RPD for Gemini 3.5 Flash**) so you can automate your search for $0. *(Disclaimer: Google uses free tier data for training. For complete privacy, run Ollama locally!)*
 - **Multi-LLM Support**: Fully agnostic backend supporting Google Gemini (1.5 Pro, 2.5 Flash), OpenAI/Anthropic (planned), and 100% local, private execution via **Ollama**.
 - **Model Fallbacks & Rate Limiting**: Intelligent error handling that automatically falls back to secondary models if an API rate limit (429) is hit.
 - **Telemetry Tracking**: Built-in dashboard to monitor API token usage and request limits.

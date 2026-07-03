@@ -6,26 +6,34 @@
   **Enterprise-grade AI Career Platform.**  
   Automates job discovery, dynamically aligns resumes to JD requirements, and generates pristine LaTeX PDFs for flawless ATS parsing.
 
-  [![GitHub Stars](https://img.shields.io/github/stars/koteshrv/career-agent.svg)](https://github.com/koteshrv/career-agent/stargazers)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
-  [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
+  [![GitHub Stars](https://img.shields.io/github/stars/koteshrv/career-agent.svg?style=for-the-badge&color=blue)](https://github.com/koteshrv/career-agent/stargazers)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+  [![React](https://img.shields.io/badge/React-19-blue.svg?style=for-the-badge&logo=react)](https://react.dev/)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+  [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
 </div>
 
 <br/>
 
-CareerAgent is an open-source, multi-LLM platform built specifically for software engineers and IT professionals looking to make a switch. It automates your job hunt, perfectly tailors your resume to beat the ATS, and drafts personalized cold emails to land referrals—saving you hours of effort after your shift.
+CareerAgent is a sophisticated, 100% free automation platform built for ambitious IT professionals. It replaces the exhausting manual job hunt with an intelligent engine that scrapes target companies, evaluates your precise fit using your choice of AI (bring your own OpenAI/Anthropic keys, or use Google Gemini/Gemma for free), and programmatically compiles ATS-optimized LaTeX resumes and personalized referral emails—acting as your personal career agent for $0.
 
 It quietly tracks job boards and company pages in the background, extracts competencies using AI, and compiles professionally formatted LaTeX PDFs designed to be accurately parsed by corporate Applicant Tracking Systems.
 
+---
+
+## 🚀 Why CareerAgent?
+Unlike generic AI job wrappers that spam "Easy Apply" buttons, **CareerAgent focuses on quality and precision.** It acts as your personal career agent, ensuring your resume mathematically aligns with the raw Job Description and generating personalized outreach materials that recruiters actually read.
+
 ## ✨ Features
+*See the full breakdown in our [Features List](features.md).*
 
 - **Automated Job Discovery**: Quietly scrapes job boards and career pages in the background, ensuring you never miss a newly posted position.
 - **Kanban Pipeline**: Organize your job search visually. Drag and drop jobs across columns (New, Applied, Interviewing, Rejected) to track your pipeline at a glance.
 - **AI Match Scoring**: Instantly evaluates your profile against the job description, providing a definitive match score to help you prioritize your best opportunities.
 - **1-Click Application Materials**: Generates tailored cover letters, concise cold emails/LinkedIn DMs, and compiles pristine LaTeX resumes directly into PDFs.
 - **Telegram Alerts & Chrome Extension**: Get instant push notifications for high-match jobs, and use the companion browser extension to one-click save jobs directly from LinkedIn and Naukri.
+- **Bring Your Own Keys (Free or Paid)**: Use any AI you prefer! Bring your own OpenAI or Anthropic keys, or use **100% Free AI Processing** with a Google AI Studio key. CareerAgent natively manages Google's strict free tier rate limits (**15 RPM / 1500 RPD for Gemma 4**, **15 RPM / 500 RPD for Gemini 3.1 Flash Lite**, **5 RPM / 20 RPD for Gemini 3.5 Flash**) so you can automate your search for $0. *(Disclaimer: Google uses free tier data for training. For complete privacy, run Ollama locally!)*
 - **Flexible AI Engine**: Fully agnostic architecture. Route via OpenAI, Anthropic, or Gemini—or run 100% locally and privately with Ollama. The choice is yours.
 
 ## 🏢 Supported Companies (43+)
@@ -37,6 +45,19 @@ CareerAgent natively integrates with the career portals and ATS systems (Greenho
 **Consulting & IT Services:** Accenture, IBM, Deloitte, TCS, Infosys, Cognizant, Capgemini, LTIMindtree, Wipro, HCLTech, Tech Mahindra, Hexaware Technologies, Mphasis, Persistent Systems  
 **Indian Tech Giants:** Meesho, PhonePe, Flipkart, Swiggy, Paytm, Cred, Razorpay, Zepto, Zoho  
 *(Plus automatic parsing for any generic Greenhouse or Lever job board!)*
+
+## 🛠 Tech Stack
+
+- **Frontend:** React 19, TypeScript, TailwindCSS, Framer Motion, Vite
+- **Backend:** Python 3.11, FastAPI, SQLite, Playwright (Headless Scraping)
+- **AI Integration:** Google Gemini (1.5 Pro, 2.5 Flash), local Ollama support
+- **Infrastructure:** Docker, Docker Compose, GitHub Actions (GHCR)
+
+## 🏗 Architecture Overview
+1. **Scraping Engine:** Headless Playwright workers silently scrape ATS portals based on user-defined intervals (via Cron).
+2. **AI Evaluation Node:** New jobs are piped to the selected LLM (Gemini/Ollama) to extract required competencies (`System Design`, `gRPC`, etc) and cross-reference them with the user's base qualifications.
+3. **LaTeX Compiler:** High-match jobs trigger the ATS generator. The AI injects missing keywords into a strict `.tex` template and natively compiles a pristine PDF using `pdflatex`.
+4. **Kanban Pipeline:** Job objects are persisted in local SQLite and surfaced to the React dashboard via REST API.
 
 ## 🚀 Getting Started
 
@@ -73,7 +94,7 @@ VITE_DEMO_MODE=true npm run dev
 ```
 
 ## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/koteshrv/career-agent/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/koteshrv/career-agent/issues). Please refer to our [Roadmap](ROADMAP.md) for upcoming features!
 
 ## 📄 License
 This project is [MIT](https://opensource.org/licenses/MIT) licensed.
