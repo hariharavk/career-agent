@@ -387,13 +387,14 @@ Original resume:
 ---
 
 Rules for Cover Letter:
-- Do NOT use generic placeholders like [Company Name] or [Your Name].
+- Do NOT use generic placeholders like [Company Name] or [Your Name]. Sign off as "Hari Karri" or "Hari".
 - Keep it under 3 paragraphs, highly confident, and direct.
 
 Rules for Cold Email / LinkedIn DM:
-- Keep it extremely short (under 100 words).
+- Keep it concise but punchy (under 200 words).
 - Focus on one strong hook relating my experience to their specific job description.
 - Include a clear call to action (e.g. asking for a brief chat).
+- Sign off as "Hari Karri" or "Hari".
 
 Rules for Tailored Resume:
 - Keep ONLY truthful information from the original resume. Do NOT invent experience or dates.

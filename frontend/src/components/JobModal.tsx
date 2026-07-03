@@ -19,30 +19,22 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
   const [notes, setNotes] = useState(job.notes || "")
   const [showNotes, setShowNotes] = useState(!!job.notes)
   const [description, setDescription] = useState(job.description || "")
-  const [fetchingJD, setFetchingJD] = useState(false)
   const [savingNotes, setSavingNotes] = useState(false)
   const [generatingMaterials, setGeneratingMaterials] = useState(false)
   const [materialsError, setMaterialsError] = useState<string | null>(null)
   const [tailoredResume, setTailoredResume] = useState<string | null>(job.tailored_resume || null)
   const [copied, setCopied] = useState(false)
+  const [copiedLetter, setCopiedLetter] = useState(false)
+  const [copiedEmail, setCopiedEmail] = useState(false)
   const [resumes, setResumes] = useState<string[]>([])
   const [selectedResume, setSelectedResume] = useState<string>("")
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
-  const [extractedKeywords, setExtractedKeywords] = useState<string[]>([])
   useEffect(() => {
     api.get("/api/resumes").then(res => {
       const list = res.data.resumes || []
       setResumes(list)
       if (list.length) setSelectedResume(list[0])
-    })
-    api.get("/api/settings").then(res => {
-      if (res.data.extracted_keywords) {
-        try {
-          const kws = JSON.parse(res.data.extracted_keywords)
-          if (Array.isArray(kws)) setExtractedKeywords(kws)
-        } catch (e) {}
-      }
     })
   }, [])
 
@@ -68,19 +60,7 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
     }
   }
 
-  const handleFetchJD = async () => {
-    setFetchingJD(true)
-    try {
-      const res = await api.post(`/api/jobs/${job.id}/fetch-jd`)
-      setDescription(res.data.description)
-      onUpdate({...job, description: res.data.description})
-      toast("Job Description fetched!", "success")
-    } catch (e: any) {
-      const msg = e.response?.data?.detail || "Failed to fetch JD. You can paste it manually."
-      toast(msg, "error")
-    }
-    setFetchingJD(false)
-  }
+
 
   const handleSoftDelete = async () => {
     try {
@@ -116,7 +96,21 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
     setTimeout(() => setCopied(false), 1500)
   }
 
-  const slug = `${job.company}-${job.title}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+  const handleCopyLetter = () => {
+    if (!job.cover_letter) return
+    navigator.clipboard.writeText(job.cover_letter)
+    setCopiedLetter(true)
+    setTimeout(() => setCopiedLetter(false), 1500)
+  }
+
+  const handleCopyEmail = () => {
+    if (!job.cold_email) return
+    navigator.clipboard.writeText(job.cold_email)
+    setCopiedEmail(true)
+    setTimeout(() => setCopiedEmail(false), 1500)
+  }
+
+  const slug = `Hari_${job.company}_${job.title}`.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "")
 
   const downloadFile = (content: string, filename: string, mime: string) => {
     const blob = new Blob([content], { type: mime })
@@ -279,11 +273,17 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
             )}
             
             <textarea 
+              ref={(el) => {
+                if (el) {
+                  el.style.height = 'auto';
+                  el.style.height = el.scrollHeight + 'px';
+                }
+              }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={handleSaveDescription}
               placeholder="Paste the full job description here, or click Fetch..."
-              className="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 resize-none custom-scrollbar text-sm font-sans"
+              className="w-full min-h-[200px] bg-black/40 border border-white/10 rounded-xl p-4 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 resize-none overflow-hidden text-sm font-sans"
             />
           </div>
 
@@ -325,9 +325,16 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cover Letter</h4>
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cover Letter</h4>
+                  {job.cover_letter && (
+                    <Button onClick={handleCopyLetter} className="bg-zinc-800 hover:bg-zinc-700 text-white h-7 text-xs px-3">
+                      {copiedLetter ? "Copied!" : "Copy"}
+                    </Button>
+                  )}
+                </div>
                 {job.cover_letter ? (
                   <div className="bg-zinc-900/50 border border-purple-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed h-[300px] overflow-y-auto custom-scrollbar">
                     {job.cover_letter}
@@ -339,8 +346,15 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
                 )}
               </div>
 
-              <div className="space-y-4">
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cold Email / LinkedIn DM</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cold Email / LinkedIn DM</h4>
+                  {job.cold_email && (
+                    <Button onClick={handleCopyEmail} className="bg-zinc-800 hover:bg-zinc-700 text-white h-7 text-xs px-3">
+                      {copiedEmail ? "Copied!" : "Copy"}
+                    </Button>
+                  )}
+                </div>
                 {job.cold_email ? (
                   <div className="bg-zinc-900/50 border border-blue-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed h-[300px] overflow-y-auto custom-scrollbar">
                     {job.cold_email}
@@ -382,7 +396,7 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
             </div>
 
             {tailoredResume ? (
-              <div className="bg-zinc-900/50 border border-emerald-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">
+              <div className="bg-zinc-900/50 border border-emerald-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed h-[400px] overflow-y-auto custom-scrollbar">
                 {tailoredResume}
               </div>
             ) : (
