@@ -20,6 +20,8 @@ export type Job = {
   description: string | null
   cover_letter?: string
   tailored_resume?: string
+  match_score?: number
+  match_reason?: string
   created_at: string
   applied_at?: string
 }
@@ -209,6 +211,13 @@ export function KanbanBoard() {
           <p className="text-sm font-semibold text-white leading-tight mb-3 line-clamp-2" title={job.title}>
             {job.title}
           </p>
+          
+          {job.match_score !== undefined && job.match_score !== null && (
+            <div className="mb-3 flex items-center gap-2" title={job.match_reason || ''}>
+              <div className={`w-2 h-2 rounded-full ${job.match_score >= 80 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : job.match_score >= 50 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
+              <span className="font-semibold text-zinc-300 text-xs">{job.match_score}% Matched</span>
+            </div>
+          )}
           
           <div className="flex items-center justify-between pt-3 border-t border-white/5">
             <div className="flex items-center gap-4">

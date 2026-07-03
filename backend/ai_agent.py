@@ -598,3 +598,60 @@ Do not return markdown fences. Just the raw JSON array.
         logger.error(f"AI filtering failed: {e}")
         
     return jobs, []
+
+def batch_evaluate_jobs(jobs_data: list, resume_text: str, api_key: str = None, model_name: str = None) -> list:
+    """
+    Evaluates a batch of jobs against the resume and returns a list of dictionaries with match scores.
+    """
+    if not jobs_data or not resume_text:
+        return []
+    
+    prompt = f"""
+You are an expert technical recruiter and ATS.
+Evaluate the following batch of job postings against the provided candidate resume.
+For each job, determine:
+1. match_score (0-100)
+2. match_reason (1-2 sentences)
+3. cleaned_job_description (Extract ONLY the core job description from the raw text, removing cookies, headers, footers, etc. Structure it nicely in Markdown).
+
+Return ONLY a valid JSON array of objects. Do not use markdown backticks.
+
+Resume:
+---
+{resume_text}
+---
+
+Jobs Batch:
+---
+{json.dumps(jobs_data, indent=2)}
+---
+
+Expected JSON format:
+[
+  {{"id": 0, "match_score": 85, "match_reason": "Strong match with Python.", "cleaned_job_description": "## Role\\n..."}},
+  {{"id": 1, "match_score": 20, "match_reason": "Missing Java.", "cleaned_job_description": "## Role\\n..."}}
+]
+"""
+    try:
+        # Default to a model that handles big contexts well if None is passed
+        if not model_name:
+            model_name = "gemini-3.1-flash-lite"
+            
+        result = _generate(prompt, api_key, model_name)
+        if result.startswith("Error"):
+            logger.error(f"Batch evaluation returned error: {result}")
+            return []
+            
+        clean = result.strip()
+        if clean.startswith("```"):
+            lines = clean.split("\n")
+            if lines[0].startswith("```json"): lines = lines[1:]
+            elif lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            clean = "\n".join(lines).strip()
+            
+        parsed = json.loads(clean)
+        return parsed
+    except Exception as e:
+        logger.error(f"Failed to batch evaluate jobs: {e}")
+        return []

@@ -17,6 +17,8 @@ class Job(Base):
     notes = Column(Text, nullable=True)
     cover_letter = Column(Text, nullable=True)
     tailored_resume = Column(Text, nullable=True)
+    match_score = Column(Integer, nullable=True)
+    match_reason = Column(Text, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

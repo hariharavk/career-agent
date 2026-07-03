@@ -14,8 +14,10 @@ except ImportError:
     HAS_VIRTUAL_DISPLAY = False
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
+import httpx
 from sqlalchemy.orm import Session
-from . import models, schemas
+import time
+from . import models, schemas, ai_agent
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 try:
@@ -29,8 +31,24 @@ JOB_HREF_HINTS = (
     "requisition", "posting", "vacanc", "gh_jid", "opening",
     "/jobs/", "/job/", "/position/", "/role/", "/apply",
     "jobId", "job_id", "jid=", "id=", "req=", "reqid",
+    "jobId", "job_id", "jid=", "id=", "req=", "reqid",
     "detail", "description", "profile",
 )
+
+async def fetch_and_strip_html(url: str) -> str:
+    """Fetch HTML and strip it down to raw text to save tokens."""
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return f"Error: HTTP {resp.status_code}"
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'svg', 'img']):
+                tag.decompose()
+            return soup.get_text(separator=' ', strip=True)[:15000]
+    except Exception as e:
+        return f"Error fetching JD: {str(e)}"
+
 
 # URL patterns that are definitely NOT individual job listings — exclude them.
 EXCLUDED_HREF_PATTERNS = (
@@ -199,11 +217,18 @@ def update_target_selector(company: str, new_selector: str):
 
 def has_been_notified(db: Session, url: str) -> bool:
     seven_days_ago = datetime.now() - timedelta(days=7)
-    return db.query(models.Job).filter(models.Job.url == url, models.Job.created_at > seven_days_ago).first() is not None
+    existing = db.query(models.Job).filter(models.Job.url == url, models.Job.created_at > seven_days_ago).first()
+    if existing and existing.status in ["REJECTED", "TRASHED", "IGNORED"]:
+        return False
+    return existing is not None
 
 def record_job(db: Session, company: str, title: str, url: str, location: str = "") -> models.Job:
     existing = db.query(models.Job).filter(models.Job.url == url).first()
     if existing:
+        if existing.status in ["REJECTED", "TRASHED", "IGNORED"]:
+            existing.status = "NEW"
+            existing.match_score = None
+            existing.match_reason = None
         return existing
     job = models.Job(company=company, title=title, url=url, location=location)
     db.add(job)
@@ -1050,6 +1075,81 @@ def commit_jobs(db: Session, jobs: list):
         db.rollback()
         logger.error(f"Failed to commit jobs: {e}")
 
+def bulk_evaluate_jobs(db: Session, jobs: list):
+    """
+    Takes a list of job dicts, chunks them into batches of 10,
+    fetches HTML, strips it, and sends to Gemini for match evaluation.
+    Then saves the match back to the DB quietly.
+    """
+    if not jobs:
+        return
+        
+    settings = db.query(models.Settings).first()
+    api_key = settings.gemini_api_key if settings else None
+    model_name = settings.gemini_model if settings else "gemini-3.1-flash-lite"
+    
+    resume_text = ai_agent.extract_resume_text() # Gets default resume
+    if not resume_text:
+        logger.info("No resume found. Skipping AI evaluation.")
+        return
+
+    logger.info(f"Bulk evaluating {len(jobs)} jobs in batches of 10...")
+    
+    batch_size = 10
+    for i in range(0, len(jobs), batch_size):
+        batch = jobs[i:i+batch_size]
+        
+        # We need the real DB job IDs
+        batch_urls = [j['url'] for j in batch]
+        db_jobs = db.query(models.Job).filter(models.Job.url.in_(batch_urls)).all()
+        
+        if not db_jobs:
+            continue
+            
+        ai_payload = []
+        for db_job in db_jobs:
+            # We already have raw HTML fetching logic async.
+            # But scraper_core is currently a sync environment inside run_scraper thread.
+            # We can use asyncio.run to fetch and strip.
+            try:
+                loop = asyncio.get_event_loop()
+                raw_text = loop.run_until_complete(fetch_and_strip_html(db_job.url))
+            except RuntimeError:
+                raw_text = asyncio.run(fetch_and_strip_html(db_job.url))
+            
+            ai_payload.append({
+                "id": db_job.id,
+                "company": db_job.company,
+                "title": db_job.title,
+                "description": raw_text
+            })
+            
+        logger.info(f"Sending batch of {len(ai_payload)} to AI...")
+        eval_results = ai_agent.batch_evaluate_jobs(ai_payload, resume_text, api_key, model_name)
+        
+        # Process results
+        for res in eval_results:
+            job_id = res.get("id")
+            score = res.get("match_score")
+            reason = res.get("match_reason")
+            
+            db_job = next((j for j in db_jobs if j.id == job_id), None)
+            if db_job:
+                db_job.match_score = score
+                db_job.match_reason = reason
+                
+                # Save the cleaned JD
+                cleaned_jd = res.get("cleaned_job_description")
+                if cleaned_jd:
+                    db_job.description = cleaned_jd
+                else:
+                    db_job.description = next((p["description"] for p in ai_payload if p["id"] == job_id), None)
+        db.commit()
+        
+        # Respect rate limits for free tier models (15 RPM)
+        if i + batch_size < len(jobs):
+            time.sleep(4.2)
+
 def run_scraper(db: Session):
     logger.info("=" * 60)
     logger.info("Starting Backend Scraper Engine...")
@@ -1107,5 +1207,13 @@ def run_scraper(db: Session):
 
     # BULK AI FILTERING & COMMIT
     logger.info(f"Total raw candidates collected across all companies: {len(all_new_jobs)}")
+    
+    # Phase 2: AI Bulk Evaluation
+    try:
+        if all_new_jobs:
+            bulk_evaluate_jobs(db, all_new_jobs)
+    except Exception as e:
+        logger.error(f"Error during bulk AI evaluation: {e}")
+
     logger.info("=" * 60)
     return all_new_jobs, company_logs

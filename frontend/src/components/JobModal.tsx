@@ -31,8 +31,6 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [extractedKeywords, setExtractedKeywords] = useState<string[]>([])
-  const [matchScore, setMatchScore] = useState<number | null>(null)
-
   useEffect(() => {
     api.get("/api/resumes").then(res => {
       const list = res.data.resumes || []
@@ -48,45 +46,6 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
       }
     })
   }, [])
-
-const TECH_KEYWORDS = [
-  "python", "javascript", "typescript", "java", "c++", "c#", ".net", "ruby", "golang", "rust", "php", 
-  "sql", "nosql", "react", "angular", "vue", "node", "express", "django", "flask", "fastapi", "spring", 
-  "docker", "kubernetes", "aws", "azure", "gcp", "terraform", "ansible", "jenkins", "git", "ci/cd", 
-  "graphql", "rest api", "postgresql", "mongodb", "redis", "mysql", "elasticsearch", "kafka", "rabbitmq", 
-  "machine learning", "deep learning", "ai", "llm", "nlp", "pytorch", "tensorflow", "agile", "scrum", 
-  "sre", "devops", "security", "testing", "pytest", "mocha", "jest", "cypress", "webpack", "vite", 
-  "css", "html", "sass", "tailwind", "linux", "bash", "shell", "prometheus", "grafana", "microservices", 
-  "serverless", "amplitude", "tableau", "power bi", "apim", "azure apim", "web security", "k8s", "openshift"
-];
-
-  useEffect(() => {
-    if (description && extractedKeywords.length > 0) {
-      const jdLower = description.toLowerCase()
-      
-      // 1. Identify which of the master tech keywords are requested in the JD
-      const jdSkills = TECH_KEYWORDS.filter(skill => {
-        const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const regex = new RegExp(`(?:^|\\s|[^a-zA-Z0-9+])(${escaped})(?:$|\\s|[^a-zA-Z0-9+])`, 'i')
-        return regex.test(jdLower)
-      })
-
-      if (jdSkills.length > 0) {
-        // 2. See how many of those JD skills are in the user's resume
-        const matched = jdSkills.filter(skill => 
-          extractedKeywords.some(ek => ek.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(ek.toLowerCase()))
-        ).length
-        setMatchScore(Math.round((matched / jdSkills.length) * 100))
-      } else {
-        // Fallback to original ratio if no master keywords found in JD
-        const found = extractedKeywords.filter(k => jdLower.includes(k.toLowerCase())).length
-        setMatchScore(Math.round((found / extractedKeywords.length) * 100))
-      }
-    } else {
-      setMatchScore(null)
-    }
-  }, [description, extractedKeywords])
-
 
   const handleSaveNotes = async () => {
     setSavingNotes(true)
@@ -301,18 +260,19 @@ const TECH_KEYWORDS = [
                 {fetchingJD ? "Fetching..." : "Fetch JD"}
               </Button>
             </div>
-            {matchScore !== null && (
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-xs font-bold text-zinc-400">Match Score</span>
-                <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-1000 ${matchScore > 70 ? 'bg-green-500' : matchScore > 40 ? 'bg-amber-500' : 'bg-red-500'}`} 
-                    style={{ width: `${matchScore}%` }} 
-                  />
+            
+            {job.match_score !== undefined && job.match_score !== null && (
+              <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-4 mb-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${job.match_score >= 80 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : job.match_score >= 50 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
+                  <span className="font-bold text-white text-sm">AI Match Score: {job.match_score}%</span>
                 </div>
-                <span className="text-xs font-bold text-white">{matchScore}%</span>
+                {job.match_reason && (
+                  <p className="text-sm text-zinc-400 leading-relaxed">{job.match_reason}</p>
+                )}
               </div>
             )}
+            
             <textarea 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
