@@ -1,7 +1,6 @@
 import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
-import { Zap, Sparkles, FileText, ArrowRight, Code2, Search, Target, Cpu, Heart, KanbanSquare, BellRing } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Zap, Sparkles, FileText, ArrowRight, Code2, Search, Target, Cpu, KanbanSquare, BellRing } from "lucide-react"
 
 export function LandingPage() {
   const navigate = useNavigate()
