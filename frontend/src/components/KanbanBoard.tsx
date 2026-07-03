@@ -20,6 +20,7 @@ export type Job = {
   description: string | null
   cover_letter?: string
   tailored_resume?: string
+  cold_email?: string
   match_score?: number
   match_reason?: string
   created_at: string
@@ -296,7 +297,9 @@ export function KanbanBoard() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className={`grid gap-6 h-full items-start ${showArchived ? 'grid-cols-1 lg:grid-cols-6' : 'grid-cols-1 lg:grid-cols-3'}`}>
         {columnsToRender.map((col) => {
-          const columnJobs = filteredJobs.filter(j => j.status === col.id)
+          const columnJobs = filteredJobs
+            .filter(j => j.status === col.id)
+            .sort((a, b) => (b.match_score ?? -1) - (a.match_score ?? -1))
           
           return (
             <div 

@@ -80,6 +80,6 @@ def start():
     db = SessionLocal()
     try:
         settings = crud.get_settings(db)
-        reschedule(settings.cron_schedule or "0 */4 * * *")
+        reschedule(settings.cron_schedule or "0 */12 * * *")
     finally:
         db.close()

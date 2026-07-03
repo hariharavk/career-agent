@@ -32,6 +32,7 @@ class JobUpdate(BaseModel):
     description: Optional[str] = None
     cover_letter: Optional[str] = None
     tailored_resume: Optional[str] = None
+    cold_email: Optional[str] = None
     match_score: Optional[int] = None
     match_reason: Optional[str] = None
     applied_at: Optional[datetime] = None
@@ -42,6 +43,7 @@ class Job(JobBase):
     notes: Optional[str] = None
     cover_letter: Optional[str] = None
     tailored_resume: Optional[str] = None
+    cold_email: Optional[str] = None
     match_score: Optional[int] = None
     match_reason: Optional[str] = None
     created_at: datetime

@@ -376,9 +376,10 @@ def generate_application_materials(job_title: str, company: str, location: str =
 
     prompt = f"""
 You are an expert technical recruiter, career coach, and professional writer.
-I need you to generate TWO things for the role of {job_title} at {company} {f'located in {location}' if location else ''}:
+I need you to generate THREE things for the role of {job_title} at {company} {f'located in {location}' if location else ''}:
 1. A concise, modern, and highly persuasive Cover Letter.
-2. A tailored version of my original Resume.
+2. A short, punchy Cold Email / LinkedIn DM to a recruiter or hiring manager.
+3. A tailored version of my original Resume.
 {jd_context}
 Original resume:
 ---
@@ -388,6 +389,11 @@ Original resume:
 Rules for Cover Letter:
 - Do NOT use generic placeholders like [Company Name] or [Your Name].
 - Keep it under 3 paragraphs, highly confident, and direct.
+
+Rules for Cold Email / LinkedIn DM:
+- Keep it extremely short (under 100 words).
+- Focus on one strong hook relating my experience to their specific job description.
+- Include a clear call to action (e.g. asking for a brief chat).
 
 Rules for Tailored Resume:
 - Keep ONLY truthful information from the original resume. Do NOT invent experience or dates.
@@ -406,6 +412,10 @@ You MUST output your response exactly in the following format with the exact del
 <cover letter text here>
 [COVER_LETTER_END]
 
+[COLD_EMAIL_START]
+<cold email text here>
+[COLD_EMAIL_END]
+
 [TAILORED_RESUME_START]
 <tailored resume text here>
 [TAILORED_RESUME_END]
@@ -418,16 +428,18 @@ You MUST output your response exactly in the following format with the exact del
         
     import re
     cl_match = re.search(r"\[COVER_LETTER_START\](.*?)\[COVER_LETTER_END\]", result, re.DOTALL)
+    em_match = re.search(r"\[COLD_EMAIL_START\](.*?)\[COLD_EMAIL_END\]", result, re.DOTALL)
     tr_match = re.search(r"\[TAILORED_RESUME_START\](.*?)\[TAILORED_RESUME_END\]", result, re.DOTALL)
     
     cl = cl_match.group(1).strip() if cl_match else ""
+    em = em_match.group(1).strip() if em_match else ""
     tr = tr_match.group(1).strip() if tr_match else ""
     
-    if not cl and not tr:
+    if not cl and not tr and not em:
         # Fallback if delimiters failed
         return {"error": "Failed to parse AI output. AI did not use the requested delimiters. Raw output: " + result[:100]}
         
-    return {"cover_letter": cl, "tailored_resume": tr}
+    return {"cover_letter": cl, "cold_email": em, "tailored_resume": tr}
 
 def extract_resume_keywords(resume_text: str, api_key: str = None, model_name: str = None) -> str:
     """Extracts a JSON array of up to 30 technical keywords from the resume text."""

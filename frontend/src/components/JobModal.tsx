@@ -102,7 +102,7 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
         generation_mode: localStorage.getItem("generation_mode") || "gemini"
       })
       setTailoredResume(res.data.tailored_resume)
-      onUpdate({...job, cover_letter: res.data.cover_letter, tailored_resume: res.data.tailored_resume})
+      onUpdate({...job, cover_letter: res.data.cover_letter, cold_email: res.data.cold_email, tailored_resume: res.data.tailored_resume})
     } catch (e: any) {
       setMaterialsError(e.response?.data?.detail || "Error generating materials. Make sure you uploaded a resume and configured a Gemini API key.")
     }
@@ -325,17 +325,32 @@ export function JobModal({ job, onClose, onUpdate, onDelete }: JobModalProps) {
               </div>
             )}
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cover Letter</h4>
-              {job.cover_letter ? (
-                <div className="bg-zinc-900/50 border border-purple-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed">
-                  {job.cover_letter}
-                </div>
-              ) : (
-                <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm">
-                  No cover letter generated yet.
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cover Letter</h4>
+                {job.cover_letter ? (
+                  <div className="bg-zinc-900/50 border border-purple-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed h-[300px] overflow-y-auto custom-scrollbar">
+                    {job.cover_letter}
+                  </div>
+                ) : (
+                  <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm h-[300px] flex items-center justify-center">
+                    No cover letter generated yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cold Email / LinkedIn DM</h4>
+                {job.cold_email ? (
+                  <div className="bg-zinc-900/50 border border-blue-500/20 rounded-xl p-6 text-sm text-zinc-300 whitespace-pre-wrap font-sans leading-relaxed h-[300px] overflow-y-auto custom-scrollbar">
+                    {job.cold_email}
+                  </div>
+                ) : (
+                  <div className="bg-black/20 border border-white/5 border-dashed rounded-xl p-8 text-center text-zinc-500 text-sm h-[300px] flex items-center justify-center">
+                    No cold email generated yet.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

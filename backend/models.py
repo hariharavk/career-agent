@@ -17,6 +17,7 @@ class Job(Base):
     notes = Column(Text, nullable=True)
     cover_letter = Column(Text, nullable=True)
     tailored_resume = Column(Text, nullable=True)
+    cold_email = Column(Text, nullable=True)
     match_score = Column(Integer, nullable=True)
     match_reason = Column(Text, nullable=True)
     
@@ -32,7 +33,7 @@ class Settings(Base):
     telegram_bot_token = Column(String, nullable=True) # Encrypted
     gemini_api_key = Column(String, nullable=True) # Encrypted
     gemini_model = Column(String, default="gemini-2.5-flash, gemini-flash-latest, gemini-2.5-pro")
-    cron_schedule = Column(String, default="0 */4 * * *")
+    cron_schedule = Column(String, default="0 */12 * * *")
     trash_retention_days = Column(Integer, default=30)
     active_companies = Column(String, nullable=True) # JSON array of active companies
     search_keywords = Column(String, nullable=True) # JSON array of search keywords

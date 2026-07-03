@@ -49,7 +49,7 @@ from . import models, schemas, crud, scheduler, ai_agent, auth
 from .database import engine, get_db
 import json
 from .scraper_core import run_scraper, load_targets, fetch_job_description, record_job
-from .ai_agent import generate_cover_letter, generate_tailored_resume
+from .ai_agent import generate_application_materials
 
 logger = logging.getLogger(__name__)
 
@@ -403,9 +403,14 @@ def generate_application_materials_for_job(job_id: int, req: schemas.GenerationR
 
     db_job = crud.update_job_status(db, job_id, schemas.JobUpdate(
         cover_letter=result["cover_letter"],
+        cold_email=result["cold_email"],
         tailored_resume=result["tailored_resume"]
     ))
-    return {"cover_letter": result["cover_letter"], "tailored_resume": result["tailored_resume"]}
+    return {
+        "cover_letter": result["cover_letter"],
+        "cold_email": result["cold_email"],
+        "tailored_resume": result["tailored_resume"]
+    }
 
 @app.post("/api/generate/on-demand")
 def generate_on_demand(req: schemas.OnDemandRequest, db: Session = Depends(get_db)):
