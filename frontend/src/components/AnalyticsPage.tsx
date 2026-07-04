@@ -39,6 +39,7 @@ export function AnalyticsPage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'app' | 'ai'>('app')
   const [isFreeTier, setIsFreeTier] = useState(() => {
     return localStorage.getItem("gemini_pricing_tier") !== "paygo"
   })
@@ -136,6 +137,9 @@ export function AnalyticsPage() {
           requestsLeft
         }
       })
+      
+      modelStats.sort((a, b) => b.requests - a.requests)
+      
     } catch (e) {}
   }
 
@@ -190,271 +194,288 @@ export function AnalyticsPage() {
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Top Level Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
-          <p className="text-zinc-400 text-sm font-medium mb-1">Total Jobs Scraped</p>
-          <p className="text-4xl font-bold text-white">{totalJobs}</p>
-        </div>
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
-          <p className="text-zinc-400 text-sm font-medium mb-1">Application Rate</p>
-          <p className="text-4xl font-bold text-purple-400">
-            {totalJobs > 0 ? Math.round((appliedJobs / totalJobs) * 100) : 0}%
-          </p>
-        </div>
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
-          <p className="text-zinc-400 text-sm font-medium mb-1">Interview Rate</p>
-          <p className="text-4xl font-bold text-yellow-400">
-            {appliedJobs > 0 ? Math.round((interviewingJobs / appliedJobs) * 100) : 0}%
-          </p>
-        </div>
+      {/* Tabs */}
+      <div className="flex p-1 bg-[#12141a] rounded-lg border border-white/5 w-fit">
+        <button 
+          onClick={() => setActiveTab('app')}
+          className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === 'app' ? 'bg-blue-500/20 text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          App Analytics
+        </button>
+        <button 
+          onClick={() => setActiveTab('ai')}
+          className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === 'ai' ? 'bg-purple-500/20 text-purple-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          AI Telemetry
+        </button>
       </div>
 
-      {/* Funnel & Gemini Usage Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Application Funnel Chart */}
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl space-y-6">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Filter className="w-5 h-5 text-blue-400" />
-            Application Funnel
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
-                <span>1. Scraped / Saved</span>
-                <span className="text-white">{totalJobs} Roles</span>
-              </div>
-              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500" style={{ width: '100%' }} />
+      {activeTab === 'app' && (
+        <div className="space-y-8">
+          {/* Top Level Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
+              <p className="text-zinc-400 text-sm font-medium mb-1">Total Jobs Scraped</p>
+              <p className="text-4xl font-bold text-white">{totalJobs}</p>
+            </div>
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
+              <p className="text-zinc-400 text-sm font-medium mb-1">Application Rate</p>
+              <p className="text-4xl font-bold text-purple-400">
+                {totalJobs > 0 ? Math.round((appliedJobs / totalJobs) * 100) : 0}%
+              </p>
+            </div>
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col items-center justify-center">
+              <p className="text-zinc-400 text-sm font-medium mb-1">Interview Rate</p>
+              <p className="text-4xl font-bold text-yellow-400">
+                {appliedJobs > 0 ? Math.round((interviewingJobs / appliedJobs) * 100) : 0}%
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Application Funnel Chart */}
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl space-y-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Filter className="w-5 h-5 text-blue-400" />
+                Application Funnel
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
+                    <span>1. Scraped / Saved</span>
+                    <span className="text-white">{totalJobs} Roles</span>
+                  </div>
+                  <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500" style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
+                    <span>2. Applied ({totalJobs > 0 ? Math.round((appliedJobs / totalJobs) * 100) : 0}% conversion)</span>
+                    <span className="text-purple-400 font-bold">{appliedJobs} Roles</span>
+                  </div>
+                  <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 transition-all duration-1000" style={{ width: `${totalJobs > 0 ? (appliedJobs / totalJobs) * 100 : 0}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
+                    <span>3. Interviewing ({appliedJobs > 0 ? Math.round((interviewingJobs / appliedJobs) * 100) : 0}% conversion)</span>
+                    <span className="text-yellow-400 font-bold">{interviewingJobs} Roles</span>
+                  </div>
+                  <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-yellow-500 transition-all duration-1000" style={{ width: `${totalJobs > 0 ? (interviewingJobs / totalJobs) * 100 : 0}%` }} />
+                  </div>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
-                <span>2. Applied ({totalJobs > 0 ? Math.round((appliedJobs / totalJobs) * 100) : 0}% conversion)</span>
-                <span className="text-purple-400 font-bold">{appliedJobs} Roles</span>
+            
+            {/* Breakdown & Sourced list */}
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-white mb-6">Pipeline Breakdown</h3>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={4} dataKey="value">
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 transition-all duration-1000" style={{ width: `${totalJobs > 0 ? (appliedJobs / totalJobs) * 100 : 0}%` }} />
+              <div className="flex flex-wrap justify-center gap-4 mt-2">
+                {pieData.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-zinc-300">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
+                    {d.name} ({d.value})
+                  </div>
+                ))}
               </div>
             </div>
-            <div>
-              <div className="flex justify-between text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
-                <span>3. Interviewing ({appliedJobs > 0 ? Math.round((interviewingJobs / appliedJobs) * 100) : 0}% conversion)</span>
-                <span className="text-yellow-400 font-bold">{interviewingJobs} Roles</span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Weekly Velocity Chart */}
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-6">
+                <TrendingUp className="w-5 h-5 text-emerald-400" />
+                Weekly Sourcing Velocity
+              </h3>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={jobsByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                    />
+                    <Line type="monotone" dataKey="Count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-500 transition-all duration-1000" style={{ width: `${totalJobs > 0 ? (interviewingJobs / totalJobs) * 100 : 0}%` }} />
+            </div>
+
+            {/* Top Sourced Companies */}
+            <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-white mb-6">Top Sourced Companies</h3>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+                    <RechartsTooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                    />
+                    <Bar dataKey="jobs" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* AI API Usage Telemetry */}
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-lg font-bold text-white">
-                <Cpu className="w-5 h-5 text-purple-400" />
-                AI API Telemetry
+      {activeTab === 'ai' && (
+        <div className="max-w-2xl">
+          {/* AI API Usage Telemetry */}
+          <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-lg font-bold text-white">
+                  <Cpu className="w-5 h-5 text-purple-400" />
+                  AI API Telemetry
+                </div>
+                {settings?.is_free_tier && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    Tag: {settings.api_key_tag}
+                  </span>
+                )}
               </div>
-              {settings?.is_free_tier && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  Tag: {settings.api_key_tag}
-                </span>
-              )}
-            </div>
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-xs text-zinc-400">Real-time tracking of tokens & API limits.</p>
-              <button 
-                onClick={toggleTier} 
-                className={`text-[10px] px-2 py-1 rounded border transition-colors ${isFreeTier ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'}`}
-              >
-                {isFreeTier ? "Free Tier" : "Pay-as-you-go"}
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-black/30 border border-white/5 rounded-xl p-4">
-                <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Requests</span>
-                <span className="text-lg font-bold text-white font-mono">{totalRequests}</span>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-xs text-zinc-400">Real-time tracking of tokens & API limits.</p>
+                <button 
+                  onClick={toggleTier} 
+                  className={`text-[10px] px-2 py-1 rounded border transition-colors ${isFreeTier ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'}`}
+                >
+                  {isFreeTier ? "Free Tier" : "Pay-as-you-go"}
+                </button>
               </div>
-              <div className="bg-black/30 border border-white/5 rounded-xl p-4">
-                <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Input Tokens</span>
-                <span className="text-lg font-bold text-white font-mono">{promptTokens.toLocaleString()}</span>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-black/30 border border-white/5 rounded-xl p-4">
+                  <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Requests</span>
+                  <span className="text-lg font-bold text-white font-mono">{totalRequests}</span>
+                </div>
+                <div className="bg-black/30 border border-white/5 rounded-xl p-4">
+                  <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Input Tokens</span>
+                  <span className="text-lg font-bold text-white font-mono">{promptTokens.toLocaleString()}</span>
+                </div>
+                <div className="bg-black/30 border border-white/5 rounded-xl p-4">
+                  <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Output Tokens</span>
+                  <span className="text-lg font-bold text-white font-mono">{candidateTokens.toLocaleString()}</span>
+                </div>
               </div>
-              <div className="bg-black/30 border border-white/5 rounded-xl p-4">
-                <span className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Output Tokens</span>
-                <span className="text-lg font-bold text-white font-mono">{candidateTokens.toLocaleString()}</span>
-              </div>
-            </div>
 
-            <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Model Breakdown</div>
-            <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-              {modelStats.length === 0 ? (
-                <div className="text-zinc-500 text-sm">No telemetry data available yet.</div>
-              ) : (
-                modelStats.map(stats => (
-                  <div key={stats.model} className="p-4 bg-blue-900/10 border border-blue-500/20 rounded-xl flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-mono text-blue-400 font-semibold text-sm">{stats.model}</span>
-                      <span className="font-bold text-white whitespace-nowrap">${stats.cost.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-400">
-                        {stats.requests.toLocaleString()} reqs &bull; {stats.promptTokens.toLocaleString()} in / {stats.candidateTokens.toLocaleString()} out
-                      </span>
-                      <span
-                        title={stats.dailyLimit === -1 ? "Alias model — limit depends on resolved version" : undefined}
-                        className={`font-semibold text-right whitespace-nowrap ${
-                          stats.dailyLimit !== -1 && stats.requestsLeft < 5 ? "text-red-400" : "text-blue-300"
-                        }`}
-                      >
-                        {stats.todayRequests.toLocaleString()} / {stats.dailyLimit === -1 ? "? (alias)" : stats.dailyLimit.toLocaleString()} reqs today
-                      </span>
-                    </div>
-                    {/* Per-model quota bar */}
-                    {stats.dailyLimit > 0 && (
-                      <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${stats.requestsLeft < 5 ? "bg-red-500" : "bg-blue-500"}`}
-                          style={{ width: `${Math.min(100, (stats.todayRequests / stats.dailyLimit) * 100)}%` }}
-                        />
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Model Breakdown</div>
+              <div className="space-y-3 pr-2">
+                {modelStats.length === 0 ? (
+                  <div className="text-zinc-500 text-sm">No telemetry data available yet.</div>
+                ) : (
+                  modelStats.map(stats => (
+                    <div key={stats.model} className="p-4 bg-blue-900/10 border border-blue-500/20 rounded-xl flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono text-blue-400 font-semibold text-sm">{stats.model}</span>
+                        <span className="font-bold text-white whitespace-nowrap">${stats.cost.toFixed(2)}</span>
                       </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-zinc-400">
+                          {stats.requests.toLocaleString()} reqs &bull; {stats.promptTokens.toLocaleString()} in / {stats.candidateTokens.toLocaleString()} out
+                        </span>
+                        <span
+                          title={stats.dailyLimit === -1 ? "Alias model — limit depends on resolved version" : undefined}
+                          className={`font-semibold text-right whitespace-nowrap ${
+                            stats.dailyLimit !== -1 && stats.requestsLeft < 5 ? "text-red-400" : "text-blue-300"
+                          }`}
+                        >
+                          {stats.todayRequests.toLocaleString()} / {stats.dailyLimit === -1 ? "? (alias)" : stats.dailyLimit.toLocaleString()} reqs today
+                        </span>
+                      </div>
+                      {/* Per-model quota bar */}
+                      {stats.dailyLimit > 0 && (
+                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${stats.requestsLeft < 5 ? "bg-red-500" : "bg-blue-500"}`}
+                            style={{ width: `${Math.min(100, (stats.todayRequests / stats.dailyLimit) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* ── Combined Fallback Capacity ── */}
+              {modelStats.length > 1 && (() => {
+                const known = modelStats.filter(s => s.dailyLimit > 0)
+                const totalCap = known.reduce((a, s) => a + s.dailyLimit, 0)
+                const totalUsed = known.reduce((a, s) => a + s.todayRequests, 0)
+                const totalLeft = Math.max(0, totalCap - totalUsed)
+                const pct = totalCap > 0 ? Math.min(100, (totalUsed / totalCap) * 100) : 0
+                if (totalCap === 0) return null
+                return (
+                  <div className="mt-3 p-3 bg-emerald-900/10 border border-emerald-500/20 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-emerald-400">Combined Fallback Capacity</span>
+                      <span className="text-xs text-zinc-400 font-mono">
+                        {totalUsed.toLocaleString()} used / <span className="text-white font-semibold">{totalLeft.toLocaleString()} left</span>
+                      </span>
+                    </div>
+                    {/* Segmented bar — each model gets a coloured segment */}
+                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex gap-px">
+                      {known.map((s, i) => {
+                        const colours = ["bg-blue-500","bg-violet-500","bg-cyan-500","bg-indigo-500","bg-sky-500"]
+                        const segPct = (s.dailyLimit / totalCap) * 100
+                        const usedPct = s.dailyLimit > 0 ? Math.min(100, (s.todayRequests / s.dailyLimit) * 100) : 0
+                        return (
+                          <div key={s.model} className="relative overflow-hidden rounded-sm" style={{ width: `${segPct}%` }}
+                            title={`${s.model}: ${s.todayRequests}/${s.dailyLimit} req/day`}>
+                            <div className="w-full h-full bg-white/5" />
+                            <div className={`absolute inset-y-0 left-0 ${colours[i % colours.length]} opacity-80`}
+                              style={{ width: `${usedPct}%` }} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-[10px] text-zinc-600">Each segment = one model's quota</span>
+                      <span className="text-[10px] text-emerald-500 font-semibold">{totalCap.toLocaleString()} req/day total</span>
+                    </div>
+                    {pct < 100 && (
+                      <p className="text-[10px] text-zinc-600 mt-1">
+                        Fallback order: {known.map(s => s.model.replace("gemini-","")).join(" → ")}
+                      </p>
                     )}
                   </div>
-                ))
-              )}
+                )
+              })()}
             </div>
-
-            {/* ── Combined Fallback Capacity ── */}
-            {modelStats.length > 1 && (() => {
-              const known = modelStats.filter(s => s.dailyLimit > 0)
-              const totalCap = known.reduce((a, s) => a + s.dailyLimit, 0)
-              const totalUsed = known.reduce((a, s) => a + s.todayRequests, 0)
-              const totalLeft = Math.max(0, totalCap - totalUsed)
-              const pct = totalCap > 0 ? Math.min(100, (totalUsed / totalCap) * 100) : 0
-              if (totalCap === 0) return null
-              return (
-                <div className="mt-3 p-3 bg-emerald-900/10 border border-emerald-500/20 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-emerald-400">Combined Fallback Capacity</span>
-                    <span className="text-xs text-zinc-400 font-mono">
-                      {totalUsed.toLocaleString()} used / <span className="text-white font-semibold">{totalLeft.toLocaleString()} left</span>
-                    </span>
-                  </div>
-                  {/* Segmented bar — each model gets a coloured segment */}
-                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex gap-px">
-                    {known.map((s, i) => {
-                      const colours = ["bg-blue-500","bg-violet-500","bg-cyan-500","bg-indigo-500","bg-sky-500"]
-                      const segPct = (s.dailyLimit / totalCap) * 100
-                      const usedPct = s.dailyLimit > 0 ? Math.min(100, (s.todayRequests / s.dailyLimit) * 100) : 0
-                      return (
-                        <div key={s.model} className="relative overflow-hidden rounded-sm" style={{ width: `${segPct}%` }}
-                          title={`${s.model}: ${s.todayRequests}/${s.dailyLimit} req/day`}>
-                          <div className="w-full h-full bg-white/5" />
-                          <div className={`absolute inset-y-0 left-0 ${colours[i % colours.length]} opacity-80`}
-                            style={{ width: `${usedPct}%` }} />
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-[10px] text-zinc-600">Each segment = one model's quota</span>
-                    <span className="text-[10px] text-emerald-500 font-semibold">{totalCap.toLocaleString()} req/day total</span>
-                  </div>
-                  {pct < 100 && (
-                    <p className="text-[10px] text-zinc-600 mt-1">
-                      Fallback order: {known.map(s => s.model.replace("gemini-","")).join(" → ")}
-                    </p>
-                  )}
-                </div>
-              )
-            })()}
-          </div>
-          <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-4 flex items-center justify-between mt-4">
-            <div>
-              <span className="block text-[10px] font-bold text-purple-400 uppercase tracking-wider">Estimated Project Cost</span>
-              <span className="text-xs text-zinc-500">{isFreeTier ? "Using Free Tier Limits" : "Based on model-specific API rates"}</span>
-            </div>
-            <span className="text-2xl font-bold text-white font-mono">{isFreeTier ? "$0.00" : `$${estCost.toFixed(5)}`}</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Bottom Row Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Weekly Velocity Chart */}
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-6">
-            <TrendingUp className="w-5 h-5 text-emerald-400" />
-            Weekly Sourcing Velocity
-          </h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={jobsByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-                />
-                <Line type="monotone" dataKey="Count" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Breakdown & Sourced list */}
-        <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
-          <h3 className="text-lg font-bold text-white mb-6">Pipeline Breakdown</h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={4} dataKey="value">
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-4 mt-2">
-            {pieData.map((d, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-zinc-300">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
-                {d.name} ({d.value})
+            <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-4 flex items-center justify-between mt-4">
+              <div>
+                <span className="block text-[10px] font-bold text-purple-400 uppercase tracking-wider">Estimated Project Cost</span>
+                <span className="text-xs text-zinc-500">{isFreeTier ? "Using Free Tier Limits" : "Based on model-specific API rates"}</span>
               </div>
-            ))}
+              <span className="text-2xl font-bold text-white font-mono">{isFreeTier ? "$0.00" : `$${estCost.toFixed(5)}`}</span>
+            </div>
           </div>
         </div>
-
-      </div>
-
-      {/* Top Sourced Companies */}
-      <div className="bg-[#12141a] rounded-2xl border border-white/5 p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-white mb-6">Top Sourced Companies</h3>
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-              <RechartsTooltip 
-                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
-              />
-              <Bar dataKey="jobs" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
+      )}
     </div>
   )
 }

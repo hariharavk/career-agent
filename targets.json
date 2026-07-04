@@ -118,7 +118,8 @@
     "type": "playwright",
     "url": "https://www.ibm.com/in-en/careers/search?field_keyword_05[0]=India&q={keyword}",
     "no_results_text": "0 results",
-    "job_url_pattern": "careers/JobDetail\\?jobId="
+    "job_url_pattern": "careers/JobDetail\\?jobId=",
+    "use_playwright": true
   },
   {
     "company": "Deloitte",

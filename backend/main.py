@@ -148,15 +148,22 @@ def login(creds: schemas.LoginRequest):
 @app.on_event("startup")
 def _start_scheduler():
     try:
+        from backend.database import SessionLocal
+        from backend.crud import get_settings
+        with SessionLocal() as db:
+            settings = get_settings(db)
+            is_debug = getattr(settings, "debug_logging_enabled", False)
+            logging.getLogger().setLevel(logging.DEBUG if is_debug else logging.INFO)
+            
         loop = asyncio.get_running_loop()
         ws_handler = WebSocketLogHandler(manager, loop)
-        ws_handler.setLevel(logging.INFO)
+        ws_handler.setLevel(logging.DEBUG if is_debug else logging.INFO)
         root_logger = logging.getLogger()
         root_logger.addHandler(ws_handler)
         
         # Also add a standard console handler so we don't lose stdout logs
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG if is_debug else logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
         console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
@@ -316,6 +323,14 @@ def get_settings(db: Session = Depends(get_db)):
 @app.put("/api/settings", response_model=schemas.Settings)
 def update_settings(settings: schemas.SettingsBase, db: Session = Depends(get_db)):
     updated = crud.update_settings(db, settings)
+    
+    # Update logging level dynamically
+    new_level = logging.DEBUG if getattr(updated, "debug_logging_enabled", False) else logging.INFO
+    root_logger = logging.getLogger()
+    root_logger.setLevel(new_level)
+    for handler in root_logger.handlers:
+        handler.setLevel(new_level)
+        
     if "cron_schedule" in settings.model_dump(exclude_unset=True):
         scheduler.reschedule(updated.cron_schedule)
     return updated

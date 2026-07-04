@@ -183,6 +183,9 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<any>({
     telegram_chat_id: "",
     telegram_bot_token: "",
+    telegram_alerts_enabled: true,
+    debug_logging_enabled: false,
+    min_match_score: 50,
     gemini_api_key: "",
     gemini_model: "gemini-2.5-flash",
     cron_schedule: "0 */4 * * *",
@@ -673,6 +676,42 @@ export function SettingsPage() {
             className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
             placeholder="e.g. 1234:ABCDEF..."
           />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="telegram_toggle"
+            checked={settings.telegram_alerts_enabled !== false}
+            onChange={e => setSettings({...settings, telegram_alerts_enabled: e.target.checked})}
+            className="w-4 h-4 rounded bg-black/40 border-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+          />
+          <label htmlFor="telegram_toggle" className="text-sm font-medium text-zinc-300">Enable Telegram Push Alerts</label>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <input
+            type="checkbox"
+            id="debug_toggle"
+            checked={settings.debug_logging_enabled === true}
+            onChange={e => setSettings({...settings, debug_logging_enabled: e.target.checked})}
+            className="w-4 h-4 rounded bg-black/40 border-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+          />
+          <label htmlFor="debug_toggle" className="text-sm font-medium text-zinc-300">Enable Debug Logging</label>
+        </div>
+        <p className="text-xs text-zinc-500 mt-0">Enables verbose output for the scraper and AI agent. Logs automatically rotate and delete at 10MB to save disk space.</p>
+
+        <div className="pt-2">
+          <label className="block text-sm font-medium text-zinc-400 mb-1">Minimum Match Score (%)</label>
+          <input 
+            type="number"
+            min="0"
+            max="100"
+            value={settings.min_match_score ?? 50} 
+            onChange={e => setSettings({...settings, min_match_score: parseInt(e.target.value) || 0})}
+            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500/50"
+          />
+          <p className="text-xs text-zinc-500 mt-1.5">Jobs with a match score below this threshold will be automatically marked as Ignored and won't clutter your New Matches board.</p>
         </div>
 
         <div>

@@ -72,6 +72,7 @@ class OnDemandRequest(BaseModel):
 class SettingsBase(BaseModel):
     telegram_chat_id: Optional[str] = None
     telegram_bot_token: Optional[str] = None
+    telegram_alerts_enabled: Optional[bool] = True
     gemini_api_key: Optional[str] = None
     gemini_model: Optional[str] = "gemini-2.5-flash, gemini-flash-latest, gemini-2.5-pro"
     cron_schedule: Optional[str] = "0 */4 * * *"
@@ -79,6 +80,8 @@ class SettingsBase(BaseModel):
     active_companies: Optional[str] = None
     search_keywords: Optional[str] = None
     extracted_keywords: Optional[str] = None
+    debug_logging_enabled: Optional[bool] = False
+    min_match_score: Optional[int] = 50
     total_prompt_tokens: Optional[int] = 0
     total_candidate_tokens: Optional[int] = 0
     custom_guidelines: Optional[str] = None

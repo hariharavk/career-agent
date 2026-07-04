@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -33,6 +33,7 @@ class Settings(Base):
     id = Column(Integer, primary_key=True, index=True)
     telegram_chat_id = Column(String, nullable=True)
     telegram_bot_token = Column(String, nullable=True) # Encrypted
+    telegram_alerts_enabled = Column(Boolean, default=True)
     gemini_api_key = Column(String, nullable=True) # Encrypted
     gemini_model = Column(String, default="gemini-2.5-flash, gemini-flash-latest, gemini-2.5-pro")
     cron_schedule = Column(String, default="0 */12 * * *")
@@ -40,6 +41,8 @@ class Settings(Base):
     active_companies = Column(String, nullable=True) # JSON array of active companies
     search_keywords = Column(String, nullable=True) # JSON array of search keywords
     extracted_keywords = Column(String, nullable=True) # JSON array of keywords extracted from resume
+    debug_logging_enabled = Column(Boolean, default=False)
+    min_match_score = Column(Integer, default=50)
     total_prompt_tokens = Column(Integer, default=0)
     total_candidate_tokens = Column(Integer, default=0)
     custom_guidelines = Column(String, nullable=True)

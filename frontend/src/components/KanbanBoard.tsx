@@ -217,7 +217,7 @@ export function KanbanBoard() {
           
           {job.match_score !== undefined && job.match_score !== null && (
             <div className="mb-3 flex items-center gap-2" title={job.match_reason || ''}>
-              <div className={`w-2 h-2 rounded-full ${job.match_score >= 80 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : job.match_score >= 50 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
+              <div className={`w-2 h-2 rounded-full ${job.match_score >= 70 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : job.match_score >= 50 ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
               <span className="font-semibold text-zinc-300 text-xs">{job.match_score}% Matched</span>
             </div>
           )}

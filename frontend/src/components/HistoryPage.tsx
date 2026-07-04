@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react"
 import { api } from "@/lib/api"
 import { formatISTDateTime } from "@/lib/datetime"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, XCircle, ChevronDown, RefreshCw, Clock, Hand, Loader2, Play, Terminal, Trash2 } from "lucide-react"
+import { CheckCircle2, XCircle, ChevronDown, RefreshCw, Clock, Hand, Loader2, Play, Terminal, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "./Toast"
 import { LiveLogsModal } from "./LiveLogsModal"
@@ -17,6 +17,8 @@ export function HistoryPage() {
   const [running, setRunning] = useState(false)
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [selectedLogRaw, setSelectedLogRaw] = useState<string | null>(null)
+  const [visibleLogChars, setVisibleLogChars] = useState(50000)
 
   const hasRunning = logs.some(l => l.status === "RUNNING")
 
@@ -142,10 +144,13 @@ export function HistoryPage() {
                 const isExpandable = hasError || hasDetails
                 const isOpen = expanded === log.id
                 
-                let details = []
+                let filteredDetails: any[] = []
                 if (log.detailed_logs) {
                   try {
-                    details = JSON.parse(log.detailed_logs)
+                    const parsed = JSON.parse(log.detailed_logs)
+                    if (Array.isArray(parsed)) {
+                      filteredDetails = parsed.filter(d => d.jobs_found > 0 || d.status !== 'SUCCESS')
+                    }
                   } catch(e) {}
                 }
                 
@@ -190,12 +195,27 @@ export function HistoryPage() {
                     <span className="font-semibold text-white">{log.jobs_found}</span> jobs
                   </td>
                   <td className="px-6 py-4 text-zinc-500 max-w-xs">
-                    {isExpandable ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate">{hasError ? log.error_message : "View Breakdown"}</span>
-                        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                      </span>
-                    ) : "-"}
+                    <div className="flex items-center gap-4">
+                      {isExpandable ? (
+                        <button onClick={(e) => { e.stopPropagation(); setExpanded(isOpen ? null : log.id); }} className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer w-[140px]">
+                          <span className="truncate">{hasError ? log.error_message : "View Breakdown"}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                        </button>
+                      ) : <span className="w-[140px] text-zinc-600">-</span>}
+                      {typeof log.raw_logs === 'string' && log.raw_logs !== "" && (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedLogRaw(log.raw_logs); 
+                            setVisibleLogChars(50000);
+                          }}
+                          className="flex items-center gap-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2.5 py-1 rounded-md font-semibold transition-colors shrink-0"
+                        >
+                          <Terminal className="w-3.5 h-3.5" />
+                          Logs
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 {isOpen && (
@@ -209,11 +229,11 @@ export function HistoryPage() {
                           </pre>
                         </div>
                       )}
-                      {details.length > 0 && (
+                      {filteredDetails.length > 0 && (
                         <div>
                           <p className="text-xs text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Per-Company Results</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {details.map((d: any, i: number) => (
+                            {filteredDetails.map((d: any, i: number) => (
                               <div key={i} className={`p-3 rounded-lg border ${d.status === 'SUCCESS' ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
                                 <div className="flex justify-between items-start mb-1">
                                   <span className="font-semibold text-white text-sm">{d.company}</span>
@@ -229,23 +249,6 @@ export function HistoryPage() {
                               </div>
                             ))}
                           </div>
-                          <details className="mt-4">
-                            <summary className="text-xs text-zinc-500 uppercase tracking-wider font-semibold cursor-pointer hover:text-zinc-400 select-none">View Raw JSON Logs</summary>
-                            <pre className="mt-2 text-[10px] text-zinc-400 bg-black/40 border border-white/5 rounded-lg p-4 overflow-x-auto max-h-64 overflow-y-auto">
-                              {JSON.stringify(details, null, 2)}
-                            </pre>
-                          </details>
-                        </div>
-                      )}
-                      
-                      {log.raw_logs && (
-                        <div className="mt-4">
-                          <details>
-                            <summary className="text-xs text-zinc-500 uppercase tracking-wider font-semibold cursor-pointer hover:text-zinc-400 select-none">View Full Console Stream</summary>
-                            <pre className="mt-2 text-[11px] font-mono text-zinc-300 bg-[#0f1115] border border-white/10 rounded-lg p-4 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">
-                              {log.raw_logs}
-                            </pre>
-                          </details>
                         </div>
                       )}
                     </td>
@@ -259,6 +262,29 @@ export function HistoryPage() {
         </div>
       </div>
       <LiveLogsModal isOpen={isLogsModalOpen} onClose={() => setIsLogsModalOpen(false)} />
+      {selectedLogRaw !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95">
+          <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#12141a]">
+              <div className="flex items-center gap-3 text-white font-semibold">
+                <Terminal className="w-5 h-5 text-blue-400" />
+                Execution Logs
+              </div>
+              <button onClick={() => setSelectedLogRaw(null)} className="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6 custom-scrollbar bg-black/40">
+              <pre className="text-[11px] font-mono text-zinc-300 whitespace-pre-wrap break-words">
+                {(() => {
+                  if (typeof selectedLogRaw !== 'string' || selectedLogRaw === '') return "No logs available.";
+                  return selectedLogRaw;
+                })()}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmDialog
         open={confirmClearOpen}
         danger

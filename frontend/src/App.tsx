@@ -12,9 +12,9 @@ import type { ReactNode } from "react"
 
 const NAV = [
   { to: "/app/applications", label: "Job Applications", title: "Application Dashboard", icon: LayoutDashboard },
-  { to: "/app/analytics", label: "Analytics", title: "Analytics", icon: LineChart },
   { to: "/app/history", label: "Run History", title: "Run History", icon: History },
   { to: "/app/quick-generate", label: "Quick Generate", title: "On-Demand Parsing", icon: Zap },
+  { to: "/app/analytics", label: "Analytics", title: "Analytics", icon: LineChart },
   { to: "/app/settings", label: "Settings", title: "Settings", icon: Settings },
 ]
 

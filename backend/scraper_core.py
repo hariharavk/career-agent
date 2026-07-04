@@ -218,7 +218,7 @@ def update_target_selector(company: str, new_selector: str):
 def has_been_notified(db: Session, url: str) -> bool:
     seven_days_ago = datetime.now() - timedelta(days=7)
     existing = db.query(models.Job).filter(models.Job.url == url, models.Job.created_at > seven_days_ago).first()
-    if existing and existing.status in ["REJECTED", "TRASHED", "IGNORED"]:
+    if existing and existing.status in ["REJECTED", "TRASH", "IGNORED"]:
         return False
     return existing is not None
 
@@ -797,6 +797,99 @@ async def extract_playwright_jobs(page, keyword: str, source_url: str, max_pages
     logger.info(f"Raw link extraction yielded {len(jobs)} candidates from {page.url}")
     return jobs
 
+async def fetch_job_descriptions_httpx(urls: List[str]) -> Dict[str, str]:
+    """Fetch visible text from a batch of URLs using fast httpx concurrency."""
+    results = {url: "" for url in urls}
+    if not urls:
+        return results
+
+    async def fetch_url(client: httpx.AsyncClient, url: str) -> tuple[str, str]:
+        try:
+            resp = await client.get(url, timeout=15.0)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                for tag in soup(["script", "style", "noscript", "nav", "header", "footer"]):
+                    tag.decompose()
+                text = soup.get_text(separator=' ')
+                clean_text = re.sub(r'\s+', ' ', text).strip()
+                return url, clean_text
+        except Exception as e:
+            logger.debug(f"httpx fetch failed for {url}: {e}")
+        return url, ""
+
+    headers = {'User-Agent': ua.random if ua else 'Mozilla/5.0'}
+    async with httpx.AsyncClient(headers=headers, verify=False, follow_redirects=True) as client:
+        tasks = [fetch_url(client, url) for url in urls]
+        fetched = await asyncio.gather(*tasks)
+        for url, text in fetched:
+            results[url] = text
+            
+    return results
+
+async def fetch_job_descriptions_batch(urls: List[str], headless: bool = True) -> Dict[str, str]:
+    """Fetch visible text from a batch of URLs using a single headless Playwright instance."""
+    results = {url: "" for url in urls}
+    if not urls:
+        return results
+
+    display = None
+    if HAS_VIRTUAL_DISPLAY and not headless:
+        try:
+            display = Display(visible=0, size=(1280, 800))
+            display.start()
+        except Exception as e:
+            logger.warning(f"Could not start virtual display, falling back to standard: {e}")
+            display = None
+
+    try:
+        async with async_playwright() as p:
+            args = [
+                "--no-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-reading-from-canvas",
+                "--disable-webgl"
+            ]
+            browser = await p.chromium.launch(headless=headless, args=args)
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent=ua.random if ua else None
+            )
+            page = await context.new_page()
+            await Stealth().apply_stealth_async(page)
+            
+            for url in urls:
+                try:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    # Give SPAs time to render their content
+                    await page.wait_for_timeout(2000)
+                    
+                    await page.evaluate('''() => {
+                        document.querySelectorAll('script, style, noscript, nav, header, footer, iframe, svg, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
+                    }''')
+                    
+                    text = await page.locator("body").inner_text(timeout=5000)
+                    clean_text = re.sub(r'\\n+', '\\n\\n', text).strip()
+                    
+                    if "Cloudflare Ray ID:" in clean_text or "Sorry, you have been blocked" in clean_text:
+                        logger.warning(f"Cloudflare block on JD: {url}")
+                        continue
+                        
+                    results[url] = clean_text
+                except Exception as e:
+                    logger.debug(f"Failed to fetch JD {url}: {e}")
+                    
+            await browser.close()
+    except Exception as e:
+        logger.error(f"Playwright batch fetch failed: {e}")
+    finally:
+        if display:
+            try:
+                display.stop()
+            except Exception:
+                pass
+                
+    return results
+
 async def fetch_job_description(url: str) -> str:
     """Fetch visible text from a URL using headless Playwright."""
     
@@ -1107,15 +1200,46 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
             continue
             
         ai_payload = []
+        targets = load_targets()
+        
+        playwright_urls = []
+        httpx_urls = []
+        
         for db_job in db_jobs:
-            # We already have raw HTML fetching logic async.
-            # But scraper_core is currently a sync environment inside run_scraper thread.
-            # We can use asyncio.run to fetch and strip.
-            try:
-                loop = asyncio.get_event_loop()
-                raw_text = loop.run_until_complete(fetch_and_strip_html(db_job.url))
-            except RuntimeError:
-                raw_text = asyncio.run(fetch_and_strip_html(db_job.url))
+            config = next((t for t in targets if t.get("name") == db_job.company), {})
+            if config.get("use_playwright", False):
+                playwright_urls.append(db_job.url)
+            else:
+                httpx_urls.append(db_job.url)
+                
+        batch_jds = {}
+        
+        try:
+            loop = asyncio.get_event_loop()
+            
+            if httpx_urls:
+                logger.info(f"Fetching {len(httpx_urls)} JDs via fast HTTPx...")
+                httpx_results = loop.run_until_complete(fetch_job_descriptions_httpx(httpx_urls))
+                batch_jds.update(httpx_results)
+                
+            if playwright_urls:
+                logger.info(f"Fetching {len(playwright_urls)} JDs via Playwright (SPA mode)...")
+                pw_results = loop.run_until_complete(fetch_job_descriptions_batch(playwright_urls, headless))
+                batch_jds.update(pw_results)
+                
+        except RuntimeError:
+            if httpx_urls:
+                logger.info(f"Fetching {len(httpx_urls)} JDs via fast HTTPx...")
+                httpx_results = asyncio.run(fetch_job_descriptions_httpx(httpx_urls))
+                batch_jds.update(httpx_results)
+                
+            if playwright_urls:
+                logger.info(f"Fetching {len(playwright_urls)} JDs via Playwright (SPA mode)...")
+                pw_results = asyncio.run(fetch_job_descriptions_batch(playwright_urls, headless))
+                batch_jds.update(pw_results)
+            
+        for db_job in db_jobs:
+            raw_text = batch_jds.get(db_job.url, "")
             
             ai_payload.append({
                 "id": db_job.id,
@@ -1127,6 +1251,9 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
         logger.info(f"Sending batch of {len(ai_payload)} to AI...")
         eval_results = ai_agent.batch_evaluate_jobs(ai_payload, resume_text, api_key, model_name)
         
+        settings = db.query(models.Settings).first()
+        min_match_score = getattr(settings, "min_match_score", 50) if settings else 50
+        
         # Process results
         for res in eval_results:
             job_id = res.get("id")
@@ -1137,6 +1264,12 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
             if db_job:
                 db_job.match_score = score
                 db_job.match_reason = reason
+                
+                if score is not None and score < min_match_score:
+                    db_job.status = "IGNORED"
+                elif db_job.status == "NEW":
+                    pass # Leave as NEW unless we need to change it
+                
                 
                 ext_id = res.get("external_id")
                 if ext_id:

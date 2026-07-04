@@ -24,7 +24,9 @@ export function LiveLogsModal({ isOpen, onClose }: LiveLogsModalProps) {
     // Clear logs when reopening
     setLogs([])
 
-    const wsBase = API_BASE.replace(/^http/, "ws")
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    const host = window.location.host
+    const wsBase = API_BASE ? API_BASE.replace(/^http/, "ws") : `${protocol}//${host}`
     const wsUrl = `${wsBase}/api/ws/logs`
 
     let socket: WebSocket | null = null
