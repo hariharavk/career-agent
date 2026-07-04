@@ -123,22 +123,27 @@ export const MOCK_RUN_HISTORY = [
   {
     id: 1, status: "SUCCESS", jobs_found: 12,
     timestamp: daysAgo(0), trigger_source: "CRON", error_message: null,
+    raw_logs: "2026-07-04 10:00:00 INFO Initializing background scraper...\n2026-07-04 10:00:02 INFO [Stripe] Found 5 matching roles\n2026-07-04 10:00:10 INFO Evaluating job matches via Gemini 1.5 Flash...\n2026-07-04 10:00:15 INFO Generated 2 ATS-friendly resumes (LaTeX compiled).\n2026-07-04 10:00:16 INFO Run complete. 12 total jobs processed."
   },
   {
     id: 2, status: "SUCCESS", jobs_found: 8,
     timestamp: daysAgo(0), trigger_source: "MANUAL", error_message: null,
+    raw_logs: "2026-07-04 15:30:00 INFO Manual scrape triggered.\n2026-07-04 15:30:12 INFO [Anthropic] Found 3 jobs.\n2026-07-04 15:30:15 INFO Run complete."
   },
   {
     id: 3, status: "FAILED", jobs_found: 0,
     timestamp: daysAgo(1), trigger_source: "CRON", error_message: "Telegram API timeout\nCheck your bot token.",
+    raw_logs: "2026-07-03 10:00:00 INFO Initializing...\n2026-07-03 10:00:15 ERROR Telegram API timeout after 10000ms. Please check your bot token.\n2026-07-03 10:00:16 ERROR Run failed."
   },
   {
     id: 4, status: "SUCCESS", jobs_found: 21,
     timestamp: daysAgo(1), trigger_source: "CRON", error_message: null,
+    raw_logs: "2026-07-03 04:00:00 INFO Nightly run started...\n2026-07-03 04:05:00 INFO Processed 40 companies. 21 new matching jobs found."
   },
   {
     id: 5, status: "SUCCESS", jobs_found: 15,
     timestamp: daysAgo(2), trigger_source: "CRON", error_message: null,
+    raw_logs: "2026-07-02 10:00:00 INFO Daily run started.\n2026-07-02 10:01:23 INFO Successfully completed run."
   },
 ]
 
