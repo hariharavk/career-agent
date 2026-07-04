@@ -51,13 +51,12 @@ export function LiveLogsModal({ isOpen, onClose }: LiveLogsModalProps) {
       }
 
       socket.onmessage = (event) => {
-        setLogs((prev) => {
-          const newLogs = [...prev, event.data]
-          if (newLogs.length > 500) {
-            return newLogs.slice(newLogs.length - 500)
-          }
-          return newLogs
-        })
+        const data = event.data as string
+        if (data.includes('\n')) {
+          setLogs((prev) => [...prev, ...data.split('\n')])
+        } else {
+          setLogs((prev) => [...prev, data])
+        }
       }
 
       socket.onclose = () => {

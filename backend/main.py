@@ -61,8 +61,8 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        for msg in self.log_buffer:
-            await websocket.send_text(msg)
+        if self.log_buffer:
+            await websocket.send_text("\n".join(self.log_buffer))
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:

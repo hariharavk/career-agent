@@ -18,7 +18,6 @@ export function HistoryPage() {
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [selectedLogRaw, setSelectedLogRaw] = useState<string | null>(null)
-  const [visibleLogChars, setVisibleLogChars] = useState(50000)
 
   const hasRunning = logs.some(l => l.status === "RUNNING")
 
