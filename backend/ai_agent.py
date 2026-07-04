@@ -17,9 +17,35 @@ except ImportError:
 
 load_dotenv()
 
+import threading
+from collections import deque
+
 logger = logging.getLogger(__name__)
 
-# --- DB-backed rate limit state ---
+# --- Precise Sliding Window Rate Limiter ---
+_request_timestamps = deque()
+_rate_limit_lock = threading.Lock()
+
+def _enforce_rpm_limit_sync(rpm: int = 14):
+    """Ensure we do not exceed 'rpm' requests per 60 seconds."""
+    with _rate_limit_lock:
+        now = time.time()
+        # Remove timestamps older than 60 seconds
+        while _request_timestamps and now - _request_timestamps[0] > 60:
+            _request_timestamps.popleft()
+            
+        if len(_request_timestamps) >= rpm:
+            sleep_time = 60 - (now - _request_timestamps[0])
+            if sleep_time > 0:
+                logger.info(f"[RateLimit] RPM sliding window full ({len(_request_timestamps)} reqs). Sleeping for {sleep_time:.2f}s...")
+                time.sleep(sleep_time)
+                # After sleeping, the oldest request falls out.
+                _request_timestamps.popleft()
+                _request_timestamps.append(time.time())
+                return
+        _request_timestamps.append(time.time())
+
+# --- DB-backed rate limit state (for hard 429 penalties) ---
 # Stores rate_limited_until (unix timestamp) inside model_telemetry JSON per model.
 # Survives server restarts unlike an in-memory dict.
 
@@ -239,6 +265,7 @@ def _generate(prompt: str, api_key: str = None, model_name: str = None) -> str:
             continue
             
         try:
+            _enforce_rpm_limit_sync(14)
             response = client.models.generate_content(model=model, contents=prompt)
             # Record token metrics
             if hasattr(response, 'usage_metadata') and response.usage_metadata:

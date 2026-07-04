@@ -49,9 +49,9 @@ def _scheduled_scrape():
                 
         new_jobs, company_logs = run_scraper(db)
         
+        logger.info(f"Scheduled scrape complete. Found {len(new_jobs)} new jobs.")
         raw_logs_str = "\n".join(capture_handler.logs)
         crud.update_scraper_log(db, log.id, jobs_found=len(new_jobs), status="SUCCESS", detailed_logs=json.dumps(company_logs), raw_logs=raw_logs_str)
-        logger.info(f"Scheduled scrape complete. Found {len(new_jobs)} new jobs.")
     except Exception as e:
         raw_logs_str = "\n".join(capture_handler.logs)
         crud.update_scraper_log(db, log.id, status="FAILED", error_message=str(e), raw_logs=raw_logs_str)

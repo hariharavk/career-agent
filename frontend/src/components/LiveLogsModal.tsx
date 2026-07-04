@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react"
 import { X, Trash2, Terminal } from "lucide-react"
-import { API_BASE } from "@/lib/api"
+import { api, API_BASE } from "@/lib/api"
 
 interface LiveLogsModalProps {
   isOpen: boolean
@@ -23,6 +23,15 @@ export function LiveLogsModal({ isOpen, onClose }: LiveLogsModalProps) {
 
     // Clear logs when reopening
     setLogs([])
+
+    api.get("/api/history").then(({ data }) => {
+      if (data && data.length > 0) {
+        const latest = data[0]
+        if (latest.status === 'RUNNING' && latest.raw_logs) {
+          setLogs(latest.raw_logs.split('\n'))
+        }
+      }
+    }).catch(() => {})
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
     const host = window.location.host

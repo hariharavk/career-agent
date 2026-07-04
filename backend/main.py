@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.log_buffer = deque(maxlen=100)
+        self.log_buffer = deque(maxlen=10000)
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -203,9 +203,9 @@ def bg_scrape_task(db: Session):
             
         new_jobs, company_logs = run_scraper(db)
         
+        logger.info(f"Background scrape completed successfully. Found {len(new_jobs)} new jobs.")
         raw_logs_str = "\n".join(capture_handler.logs)
         crud.update_scraper_log(db, log.id, jobs_found=len(new_jobs), status="SUCCESS", detailed_logs=json.dumps(company_logs), raw_logs=raw_logs_str)
-        logger.info(f"Background scrape complete! Found {len(new_jobs)} new jobs.")
     except Exception as e:
         raw_logs_str = "\n".join(capture_handler.logs)
         crud.update_scraper_log(db, log.id, status="FAILED", error_message=str(e), raw_logs=raw_logs_str)

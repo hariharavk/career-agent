@@ -264,7 +264,7 @@ export function HistoryPage() {
       <LiveLogsModal isOpen={isLogsModalOpen} onClose={() => setIsLogsModalOpen(false)} />
       {selectedLogRaw !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95">
-          <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="bg-[#0f1115] border border-white/10 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#12141a]">
               <div className="flex items-center gap-3 text-white font-semibold">
                 <Terminal className="w-5 h-5 text-blue-400" />
@@ -275,12 +275,14 @@ export function HistoryPage() {
               </button>
             </div>
             <div className="flex-1 overflow-auto p-6 custom-scrollbar bg-black/40">
-              <pre className="text-[11px] font-mono text-zinc-300 whitespace-pre-wrap break-words">
-                {(() => {
+              <textarea 
+                className="w-full h-full bg-transparent text-[11px] font-mono text-zinc-300 resize-none outline-none"
+                readOnly
+                value={(() => {
                   if (typeof selectedLogRaw !== 'string' || selectedLogRaw === '') return "No logs available.";
                   return selectedLogRaw;
                 })()}
-              </pre>
+              />
             </div>
           </div>
         </div>

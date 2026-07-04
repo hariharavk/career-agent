@@ -860,8 +860,15 @@ async def fetch_job_descriptions_batch(urls: List[str], headless: bool = True) -
             for url in urls:
                 try:
                     await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    
                     # Give SPAs time to render their content
-                    await page.wait_for_timeout(2000)
+                    try:
+                        # Wait for common JD containers
+                        await page.wait_for_selector('div[itemprop="description"], .job-description, #job-description, .description, [class*="job-description"], [data-testid="job-description"], .bx--article', timeout=8000)
+                    except Exception:
+                        pass
+                    
+                    await page.wait_for_timeout(3000)
                     
                     await page.evaluate('''() => {
                         document.querySelectorAll('script, style, noscript, nav, header, footer, iframe, svg, [role="navigation"], [role="banner"], [role="contentinfo"]').forEach(el => el.remove());
@@ -1206,7 +1213,7 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
         httpx_urls = []
         
         for db_job in db_jobs:
-            config = next((t for t in targets if t.get("name") == db_job.company), {})
+            config = next((t for t in targets if t.get("company") == db_job.company), {})
             if config.get("use_playwright", False):
                 playwright_urls.append(db_job.url)
             else:
@@ -1224,7 +1231,7 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
                 
             if playwright_urls:
                 logger.info(f"Fetching {len(playwright_urls)} JDs via Playwright (SPA mode)...")
-                pw_results = loop.run_until_complete(fetch_job_descriptions_batch(playwright_urls, headless))
+                pw_results = loop.run_until_complete(fetch_job_descriptions_batch(playwright_urls, True))
                 batch_jds.update(pw_results)
                 
         except RuntimeError:
@@ -1235,7 +1242,7 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
                 
             if playwright_urls:
                 logger.info(f"Fetching {len(playwright_urls)} JDs via Playwright (SPA mode)...")
-                pw_results = asyncio.run(fetch_job_descriptions_batch(playwright_urls, headless))
+                pw_results = asyncio.run(fetch_job_descriptions_batch(playwright_urls, True))
                 batch_jds.update(pw_results)
             
         for db_job in db_jobs:
@@ -1248,8 +1255,18 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
                 "description": raw_text
             })
             
-        logger.info(f"Sending batch of {len(ai_payload)} to AI...")
-        eval_results = ai_agent.batch_evaluate_jobs(ai_payload, resume_text, api_key, model_name)
+        logger.info(f"Sending {len(ai_payload)} jobs to AI in batches of {batch_size} concurrently...")
+        eval_results = []
+        
+        def eval_chunk(chunk):
+            return ai_agent.batch_evaluate_jobs(chunk, resume_text, api_key, model_name)
+            
+        chunks = [ai_payload[i:i + batch_size] for i in range(0, len(ai_payload), batch_size)]
+        
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            for res in executor.map(eval_chunk, chunks):
+                eval_results.extend(res)
         
         settings = db.query(models.Settings).first()
         min_match_score = getattr(settings, "min_match_score", 50) if settings else 50
@@ -1286,10 +1303,7 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
                 else:
                     db_job.description = next((p["description"] for p in ai_payload if p["id"] == job_id), None)
         db.commit()
-        
-        # Respect rate limits for free tier models (15 RPM)
-        if i + batch_size < len(jobs):
-            time.sleep(4.2)
+
 
 def run_scraper(db: Session):
     logger.info("=" * 60)

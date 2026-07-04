@@ -427,6 +427,7 @@ export function KanbanBoard() {
           <span className="text-xs font-semibold text-zinc-300 px-2">{selectedIds.length} selected</span>
           <div className="w-px h-5 bg-white/10" />
           {[
+            { label: "New Matches", status: "NEW" },
             { label: "Applied", status: "APPLIED" },
             { label: "Interviewing", status: "INTERVIEWING" },
             { label: "Rejected", status: "REJECTED" },
