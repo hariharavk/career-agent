@@ -6,7 +6,7 @@
   **Your personal AI career agent.**  
   Scrapes job boards, evaluates match scores using AI, and generates tailored ATS-friendly resumes and referral emails.
 
-  [![GitHub Stars](https://img.shields.io/github/stars/koteshrv/career-agent.svg?style=for-the-badge&color=blue)](https://github.com/koteshrv/career-agent/stargazers)
+  [![GitHub Stars](https://img.shields.io/github/stars/hariharavk/career-agent.svg?style=for-the-badge&color=blue)](https://github.com/hariharavk/career-agent/stargazers)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
   [![React](https://img.shields.io/badge/React-19-blue.svg?style=for-the-badge&logo=react)](https://react.dev/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -66,7 +66,7 @@ The easiest way to run CareerAgent is using our pre-built GitHub Container Regis
 
 ```bash
 # 1. Download the docker-compose file
-curl -O https://raw.githubusercontent.com/koteshrv/career-agent/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/hariharavk/career-agent/main/docker-compose.yml
 
 # 2. Start the application in the background
 docker compose up -d
@@ -104,7 +104,7 @@ cd ..
 ```
 
 ## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/koteshrv/career-agent/issues). Please refer to our [Roadmap](ROADMAP.md) for upcoming features!
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/hariharavk/career-agent/issues). Please refer to our [Roadmap](ROADMAP.md) for upcoming features!
 
 ## 📄 License
 This project is [MIT](https://opensource.org/licenses/MIT) licensed.

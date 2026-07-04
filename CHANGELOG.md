@@ -23,10 +23,10 @@ We highly recommend running CareerAgent via our pre-built GitHub Container Regis
 
 ```bash
 # 1. Download the docker-compose file
-curl -O https://raw.githubusercontent.com/koteshrv/career-agent/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/hariharavk/career-agent/main/docker-compose.yml
 
 # 2. Start the application in the background
 docker compose up -d
 ```
 
-*For manual developer installation instructions, please refer to the [README](https://github.com/koteshrv/career-agent).*
+*For manual developer installation instructions, please refer to the [README](https://github.com/hariharavk/career-agent).*

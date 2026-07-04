@@ -206,7 +206,6 @@ export function HistoryPage() {
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setSelectedLogRaw(log.raw_logs); 
-                            setVisibleLogChars(50000);
                           }}
                           className="flex items-center gap-1.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2.5 py-1 rounded-md font-semibold transition-colors shrink-0"
                         >
