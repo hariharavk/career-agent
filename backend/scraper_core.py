@@ -129,8 +129,8 @@ def is_valid_candidate(href: str, title: str, strict_hints: bool = False) -> boo
 def _find_jobs_in_json(data):
     jobs = []
     if isinstance(data, dict):
-        title = data.get("title") or data.get("jobTitle") or data.get("reqTitle")
-        link = data.get("url") or data.get("jobUrl") or data.get("link") or data.get("id") or data.get("jobId")
+        title = data.get("title") or data.get("jobTitle") or data.get("reqTitle") or data.get("name") or data.get("postingTitle")
+        link = data.get("url") or data.get("jobUrl") or data.get("link") or data.get("id") or data.get("jobId") or data.get("jobReqId") or data.get("postingId")
         if title and link and isinstance(title, str) and isinstance(link, (str, int)):
             if is_valid_candidate(str(link), title):
                 jobs.append({"title": title, "href": str(link)})
@@ -962,8 +962,24 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
     settings = crud.get_settings(db)
     max_pages_limit = settings.max_pages if settings and settings.max_pages else 3
     
-    # Set headless to false for full browser bypassing if running inside docker or normally
-    if not targets: return
+    display = None
+    if HAS_VIRTUAL_DISPLAY:
+        try:
+            display = Display(visible=0, size=(1280, 800))
+            display.start()
+            headless = False
+            logger.info("Started pyvirtualdisplay for headed Playwright execution inside Docker.")
+        except Exception as e:
+            logger.warning(f"Could not start virtual display in process_playwright: {e}")
+            display = None
+
+    if not targets:
+        if display:
+            try:
+                display.stop()
+            except: pass
+        return
+
     async with async_playwright() as p:
         args = [
             "--no-sandbox",
@@ -982,6 +998,31 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
             await Stealth().apply_stealth_async(page)
             company = target.get("company", "Unknown")
             url_template = target.get("url")
+            
+            api_extracted_jobs = []
+            async def intercept_json_responses(response):
+                try:
+                    if response.request.resource_type in ["xhr", "fetch"]:
+                        content_type = response.headers.get("content-type", "")
+                        if "json" in content_type:
+                            json_data = await response.json()
+                            if json_data:
+                                jobs = _find_jobs_in_json(json_data)
+                                for j in jobs:
+                                    if not j["href"].startswith("http"):
+                                        href_str = str(j["href"])
+                                        if "infosys" in response.url.lower() and href_str.isdigit():
+                                            j["href"] = f"https://career.infosys.com/jobdesc/{href_str}"
+                                        elif "hcltech" in response.url.lower() and href_str.isdigit():
+                                            j["href"] = f"https://careers.hcltech.com/job/{href_str}"
+                                        else:
+                                            j["href"] = urllib.parse.urljoin(response.url, href_str)
+                                if jobs:
+                                    api_extracted_jobs.extend(jobs)
+                except Exception:
+                    pass
+            page.on("response", intercept_json_responses)
+            
             logger.info(f"Scraping playwright board for {company}...")
             if not url_template:
                 continue
@@ -1039,7 +1080,18 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                 else:
                     url = url_template.replace("{keyword}", urllib.parse.quote(keyword))
                     
+                new_from_keyword = 0
+                extracted = []
                 try:
+                    if company == "Infosys":
+                        async def intercept_infosys(route, request):
+                            if "getCareerSearchJobs" in request.url and request.method == "GET":
+                                new_url = request.url.replace("searchText=ALL", f"searchText={urllib.parse.quote(keyword)}")
+                                await route.continue_(url=new_url)
+                            else:
+                                await route.continue_()
+                        await page.route("**/getCareerSearchJobs**", intercept_infosys)
+
                     logger.debug(f"[{company}] Navigating to: {url}")
                     extra_wait = target.get("extra_wait_ms", 0)
                     try:
@@ -1074,13 +1126,19 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                                             await route.continue_()
                                     else:
                                         await route.continue_()
-                                await page.route("**/api/v1/jobs/searchJ**", intercept_tcs)
+                                await page.route("**/api/v1/jobs/search**", intercept_tcs)
                                 
                             # Perform a basic UI interaction so Angular triggers the API request
                             input_loc = page.locator(search_input_selector)
                             await input_loc.fill(keyword, timeout=10000)
                             await page.wait_for_timeout(500)
-                            await input_loc.press("Enter")
+                            if search_btn_selector:
+                                await page.locator(search_btn_selector).click()
+                            else:
+                                await input_loc.press("Enter")
+                            
+                            # Wait for background APIs to settle after searching
+                            await page.wait_for_timeout(5000)
                             
                             # The API call wait is handled dynamically inside extract_playwright_jobs via #paging:not(.ng-hide)
                         except Exception as ui_e:
@@ -1109,7 +1167,6 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                             next_btn_selector=next_btn_selector,
                             force_url_pagination=force_url_pagination
                         )
-                        new_from_keyword = 0
                         if extracted:
                             for job in extracted:
                                 href = job["href"]
@@ -1126,11 +1183,47 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                                     new_from_keyword += 1
                                 else:
                                     logger.debug(f"[{company}] Already in DB, skipping: {href[:80]}")
+                        
+                    if api_extracted_jobs:
+                        # Infosys API ignores searchText and returns ALL jobs, so we must manually filter them.
+                        if company == "Infosys":
+                            api_extracted_jobs = [j for j in api_extracted_jobs if keyword.lower() in j["title"].lower()]
+
+                        # Prevent massive API payloads (e.g. Infosys returning 1200 jobs at once) from freezing the scraper
+                        max_api_jobs = 50
+                        api_extracted_jobs = api_extracted_jobs[:max_api_jobs]
+                        
+                        logger.info(f"[{company}] API Interceptor caught {len(api_extracted_jobs)} background jobs! Sample: {api_extracted_jobs[0] if api_extracted_jobs else 'None'}")
+                        for job in api_extracted_jobs:
+                            href = job["href"]
+                            if job_url_pattern and not re.search(job_url_pattern, href, re.IGNORECASE):
+                                logger.debug(f"[{company}] Interceptor dropped URL due to pattern: {href}")
+                                continue
+                            if intersect_seen is not None and href not in intersect_seen:
+                                continue
+                            if href in company_seen:
+                                continue
+                            company_seen.add(href)
+                            if not has_been_notified(db, href):
+                                logger.debug(f"[{company}] Interceptor adding new job: {href}")
+                                new_jobs.append({"company": company, "title": job["title"], "url": href, "location": "", "source_url": url, "skip_ai": False})
+                                jobs_found_count += 1
+                                new_from_keyword += 1
+                            else:
+                                logger.debug(f"[{company}] Interceptor dropped URL (already notified): {href}")
+                        api_extracted_jobs.clear()
+                            
                         logger.debug(f"[{company}] keyword='{keyword}': {len(extracted or [])} raw links, {new_from_keyword} new added")
                 except Exception as e:
                     logger.error(f"Playwright error {company}: {e}")
                     has_error = True
                     error_msg = str(e)
+                finally:
+                    if company == "Infosys":
+                        try:
+                            await page.unroute("**/getCareerSearchJobs**")
+                        except Exception:
+                            pass
                     
             if has_error:
                 company_logs.append({"company": company, "status": "FAILED", "jobs_found": jobs_found_count, "message": error_msg})
@@ -1145,6 +1238,12 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                 pass
                 
         await browser.close()
+
+    if display:
+        try:
+            display.stop()
+        except Exception:
+            pass
 
 def get_active_companies(db: Session) -> List[str]:
     """Return the list of companies the user enabled in Settings, or [] for 'all'."""

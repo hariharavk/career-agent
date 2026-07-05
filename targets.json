@@ -43,10 +43,10 @@
   {
     "company": "Infosys",
     "type": "playwright",
-    "url": "https://career.infosys.com/jobs?companyhiringtype=IL&countrycode=IN&keyword={keyword}",
-    "no_results_text": "0 records found",
-    "extra_wait_ms": 10000,
-    "job_url_pattern": "/jobdesc/\\d+"
+    "url": "https://career.infosys.com/jobs?companyhiringtype=IL&countrycode=IN",
+    "no_results_text": "0 jobs found",
+    "extra_wait_ms": 3000,
+    "job_url_pattern": "job"
   },
   {
     "company": "Cognizant",
@@ -104,7 +104,7 @@
     "type": "playwright",
     "url": "https://careers.hcltech.com/search/?q={keyword}&locationsearch=&searchResultView=LIST&markerViewed=&carouselIndex=&facetFilters=%7B%22custCountryRegion%22%3A%5B%22India%22%5D%7D&pageNumber=0",
     "no_results_text": "0 results",
-    "job_url_pattern": "/job/"
+    "job_url_pattern": "/job/.*?/\\d+"
   },
   {
     "company": "Accenture",
@@ -124,7 +124,7 @@
   {
     "company": "Deloitte",
     "type": "playwright",
-    "url": "https://southasiacareers.deloitte.com/search/?createNewAlert=false&q={keyword}&locationsearch=&optionsFacetsDD_city=&optionsFacetsDD_customfield2=",
+    "url": "https://southasiacareers.deloitte.com/search/?createNewAlert=false&q={keyword}&locationsearch=India&optionsFacetsDD_city=&optionsFacetsDD_customfield2=",
     "no_results_text": "0 results",
     "extra_wait_ms": 5000,
     "job_url_pattern": "/job/"
