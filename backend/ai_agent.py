@@ -257,7 +257,7 @@ def _generate(prompt: str, api_key: str = None, model_name: str = None) -> str:
     else:
         logger.info(f"[AI] Model chain from Settings: {chain}")
 
-    client = genai.Client(api_key=resolved_key)
+    client = genai.Client(api_key=resolved_key, http_options={'timeout': 60.0})
     last_err = ""
     for model in chain:
         if _is_rate_limited(model):
