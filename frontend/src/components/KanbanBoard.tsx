@@ -45,7 +45,10 @@ export function KanbanBoard() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({})
   const [showArchived, setShowArchived] = useState(false)
+  const [groupByCompany, setGroupByCompany] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [sortBy, setSortBy] = useState<"date" | "priority">("priority")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [clearing, setClearing] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
@@ -269,7 +272,39 @@ export function KanbanBoard() {
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-2 shrink-0 mr-2">
+            <span className="text-xs text-zinc-500 font-medium hidden sm:inline">Group:</span>
+            <button
+              onClick={() => setGroupByCompany(!groupByCompany)}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                groupByCompany 
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
+                : 'bg-zinc-800/50 text-zinc-400 border border-white/10 hover:bg-zinc-800'
+              }`}
+            >
+              {groupByCompany ? 'Company' : 'None'}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 mr-2">
+            <span className="text-xs text-zinc-500 font-medium hidden sm:inline">Sort:</span>
+            <select 
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [s, o] = e.target.value.split("-")
+                setSortBy(s as any)
+                setSortOrder(o as any)
+              }}
+              className="bg-zinc-800/50 border border-white/10 rounded-md text-xs text-zinc-300 py-1.5 px-2 focus:outline-none focus:border-blue-500/50 [&>option]:bg-zinc-900 [&>option]:text-zinc-200"
+            >
+              <option value="priority-desc">Priority (High ➔ Low)</option>
+              <option value="priority-asc">Priority (Low ➔ High)</option>
+              <option value="date-desc">Newly Added (Newest ➔ Oldest)</option>
+              <option value="date-asc">Newly Added (Oldest ➔ Newest)</option>
+            </select>
+          </div>
+
           <button
             onClick={() => setShowArchived(!showArchived)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
@@ -301,7 +336,17 @@ export function KanbanBoard() {
         {columnsToRender.map((col) => {
           const columnJobs = filteredJobs
             .filter(j => j.status === col.id)
-            .sort((a, b) => (b.match_score ?? -1) - (a.match_score ?? -1))
+            .sort((a, b) => {
+              if (sortBy === "priority") {
+                const scoreA = a.match_score ?? -1;
+                const scoreB = b.match_score ?? -1;
+                return sortOrder === "desc" ? scoreB - scoreA : scoreA - scoreB;
+              } else {
+                const timeA = new Date(a.created_at).getTime();
+                const timeB = new Date(b.created_at).getTime();
+                return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+              }
+            })
           
           return (
             <div 
@@ -326,8 +371,8 @@ export function KanbanBoard() {
                     className={`flex-1 overflow-y-auto p-1 custom-scrollbar transition-colors duration-300 ${snapshot.isDraggingOver ? 'bg-white/5 rounded-xl' : ''}`}
                   >
                     
-                    {/* Render Grouped Companies for NEW column */}
-                    {col.id === "NEW" ? (
+                    {/* Render Grouped Companies or Flat list for NEW column */}
+                    {col.id === "NEW" && groupByCompany ? (
                       (() => {
                         const companies = Array.from(new Set(columnJobs.map(j => j.company)))
                         return companies.map((company) => {
@@ -350,11 +395,9 @@ export function KanbanBoard() {
                                 {isExpanded && (
                                   <div className="px-2">
                                     <div className="pt-2 pb-1">
-                                      {companyJobs.map((job) => {
-                                        // Global index for draggables
-                                        const globalIndex = filteredJobs.findIndex(j => j.id === job.id)
+                                      {companyJobs.map((job, index) => {
                                         return (
-                                          <Draggable key={job.id} draggableId={job.id.toString()} index={globalIndex}>
+                                          <Draggable key={job.id} draggableId={job.id.toString()} index={index}>
                                             {(provided, snapshot) => renderJobCard(job, snapshot, provided)}
                                           </Draggable>
                                         )
@@ -368,10 +411,9 @@ export function KanbanBoard() {
                       })()
                     ) : (
                       /* Standard flat rendering for other columns */
-                      columnJobs.map((job) => {
-                        const globalIndex = filteredJobs.findIndex(j => j.id === job.id)
+                      columnJobs.map((job, index) => {
                         return (
-                          <Draggable key={job.id} draggableId={job.id.toString()} index={globalIndex}>
+                          <Draggable key={job.id} draggableId={job.id.toString()} index={index}>
                             {(provided, snapshot) => renderJobCard(job, snapshot, provided)}
                           </Draggable>
                         )

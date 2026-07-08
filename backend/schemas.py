@@ -57,6 +57,16 @@ class Job(JobBase):
     class Config:
         from_attributes = True
 
+class ExtensionPayload(BaseModel):
+    url: str
+    page_title: str
+    description: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+
+class ExtensionBatchPayload(BaseModel):
+    jobs: List[ExtensionPayload]
+
 class GenerationRequest(BaseModel):
     resume: Optional[str] = None
     generation_mode: Optional[str] = None

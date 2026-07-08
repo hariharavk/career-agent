@@ -1311,14 +1311,18 @@ def bulk_evaluate_jobs(db: Session, jobs: list):
         playwright_urls = []
         httpx_urls = []
         
+        batch_jds = {}
         for db_job in db_jobs:
+            if db_job.description and len(db_job.description) > 200:
+                # Already populated (e.g. by the Chrome Extension)
+                batch_jds[db_job.url] = db_job.description
+                continue
+                
             config = next((t for t in targets if t.get("company") == db_job.company), {})
             if config.get("use_playwright", False):
                 playwright_urls.append(db_job.url)
             else:
                 httpx_urls.append(db_job.url)
-                
-        batch_jds = {}
         
         try:
             loop = asyncio.get_event_loop()

@@ -340,12 +340,18 @@
 
   <!-- Settings View -->
   <div id="settingsView" class="view-card hidden">
-    <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700;">Account Settings</h3>
+    <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700;">Settings</h3>
     <p style="font-size: 14px; color: hsl(var(--muted)); margin-bottom: 16px;">
-      <span id="activeUser"></span>
+      Logged in as: <span id="activeUser" style="color: hsl(var(--text)); font-weight: 500;"></span>
     </p>
+
+    <div class="input-group" style="margin-bottom: 24px;">
+      <label for="whitelistInput">Allowed Sites (comma separated)</label>
+      <input type="text" id="whitelistInput" placeholder="linkedin.com, naukri.com, indeed.com" />
+    </div>
+
     <button id="logoutBtn" class="btn-primary" style="background-color: hsl(var(--error)); box-shadow: 0 4px 12px hsl(var(--error) / 0.25);">Log Out</button>
-    <button id="backBtn" class="text-link" style="width: 100%; text-align: center; margin-top: 12px;">Back to Queue</button>
+    <button id="backBtn" class="text-link" style="width: 100%; text-align: center; margin-top: 16px;">Back to Queue</button>
   </div>
 
   <div id="status"></div>

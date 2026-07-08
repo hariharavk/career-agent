@@ -272,6 +272,86 @@ class ExtensionPayload(BaseModel):
     company: str = None
     title: str = None
 
+def _process_extension_job(payload: schemas.ExtensionPayload, db_gen, settings, api_key, model_name):
+    db = next(db_gen)
+    import urllib.parse
+    
+    # Parse domain for source tag
+    try:
+        domain = urllib.parse.urlparse(payload.url).netloc
+        parts = domain.replace("www.", "").split(".")
+        site_name = parts[-2].capitalize() if len(parts) >= 2 else domain
+    except Exception:
+        site_name = "Extension"
+    location_tag = f"Manual - Extension ({site_name})"
+
+    logger.info(f"Extension extracted {len(payload.description)} chars from {payload.url}")
+    with open("last_extension_payload.txt", "w") as f:
+        f.write(payload.description)
+        
+    clean_desc = ai_agent.sanitize_job_description(payload.description, api_key)
+
+    company = payload.company.strip() if payload.company else ""
+    title = payload.title.strip() if payload.title else ""
+    
+    if not company or company == "Unknown Company":
+        parsed = ai_agent.parse_job_page_title(payload.page_title, api_key, model_name)
+        company = parsed.get("company", "Unknown Company")
+        if not title or title == payload.page_title:
+            title = parsed.get("title", payload.page_title)
+            
+    if not company: company = "Unknown Company"
+    if not title: title = payload.page_title
+
+    job = record_job(db, company, title, payload.url, location_tag)
+    db.commit()
+    db.refresh(job)
+    
+    update_data = {
+        "description": clean_desc, "location": location_tag,
+        "company": company, "title": title
+    }
+    job_update = schemas.JobUpdate(**update_data)
+    crud.update_job_status(db, job.id, job_update)
+    db.refresh(job)
+    
+    return job
+
+def process_batch_background(payloads: List[schemas.ExtensionPayload], settings: schemas.Settings):
+    api_key = settings.gemini_api_key if settings else None
+    model_name = settings.gemini_model if settings else None
+    
+    # Get a fresh DB session for the background task
+    db_gen = get_db()
+    db = next(db_gen)
+    
+    jobs_to_evaluate = []
+    for payload in payloads:
+        try:
+            # Pass the same session so objects stay attached
+            job = _process_extension_job(payload, iter([db]), settings, api_key, model_name)
+            jobs_to_evaluate.append({"url": job.url})
+        except Exception as e:
+            logger.error(f"Failed background extension job: {e}")
+            
+    if jobs_to_evaluate:
+        from .scraper_core import bulk_evaluate_jobs
+        try:
+            bulk_evaluate_jobs(db, jobs_to_evaluate)
+        except Exception as e:
+            logger.error(f"Failed to evaluate background jobs: {e}")
+            
+    try:
+        next(db_gen)
+    except StopIteration:
+        pass
+
+@app.post("/api/jobs/extension/batch")
+def save_from_extension_batch(payload: schemas.ExtensionBatchPayload, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    settings = crud.get_settings(db)
+    background_tasks.add_task(process_batch_background, payload.jobs, settings)
+    return {"status": "processing"}
+
 @app.get("/api/jobs/extension/parse-title")
 def parse_title_endpoint(page_title: str, db: Session = Depends(get_db)):
     """Used by Chrome extension to pre-parse the title before user saves it."""

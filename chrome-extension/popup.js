@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginView = document.getElementById('loginView');
   const actionView = document.getElementById('actionView');
   const settingsView = document.getElementById('settingsView');
+  const whitelistInput = document.getElementById('whitelistInput');
   
   const activeUserSpan = document.getElementById('activeUser');
   const statusDiv = document.getElementById('status');
@@ -21,11 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const processBtn = document.getElementById('processBtn');
 
   let jobQueue = [];
+  let allowedSites = ['linkedin.com', 'naukri.com', 'indeed.com'];
 
   // Check auth status on load
-  chrome.storage.local.get(['token', 'apiUrl', 'username', 'jobQueue'], (result) => {
+  chrome.storage.local.get(['token', 'apiUrl', 'username', 'jobQueue', 'allowedSites'], (result) => {
     if (result.apiUrl) apiUrlInput.value = result.apiUrl;
     jobQueue = result.jobQueue || [];
+    if (result.allowedSites) allowedSites = result.allowedSites;
+    whitelistInput.value = allowedSites.join(', ');
     
     if (result.token) {
       showActionView(result.username || 'admin');
@@ -68,6 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get(['username'], (result) => {
       showActionView(result.username || 'admin');
     });
+  });
+
+  whitelistInput.addEventListener('change', (e) => {
+    const raw = e.target.value;
+    allowedSites = raw.split(',').map(s => s.trim().toLowerCase()).filter(s => s);
+    chrome.storage.local.set({ allowedSites });
   });
 
   function renderQueue() {
@@ -159,19 +169,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) throw new Error("No active tab found");
+      if (!tab || !tab.url) throw new Error("No active tab found");
+
+      try {
+        const tabUrl = new URL(tab.url);
+        const isAllowed = allowedSites.some(site => tabUrl.hostname.includes(site));
+        if (!isAllowed) {
+          throw new Error("Current site is not in your allowed whitelist");
+        }
+      } catch (e) {
+        if (e.message.includes("whitelist")) throw e;
+        throw new Error("Invalid URL");
+      }
 
       const [{ result }] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          const clone = document.body.cloneNode(true);
-          const elementsToRemove = clone.querySelectorAll('script, style, noscript, nav, footer, header');
-          elementsToRemove.forEach(el => el.remove());
-          
           return {
             url: window.location.href,
             page_title: document.title,
-            description: clone.innerText.substring(0, 15000)
+            description: document.body.innerText.substring(0, 15000)
           };
         }
       });
@@ -227,53 +244,50 @@ document.addEventListener('DOMContentLoaded', () => {
       // Copy queue to iterate, we will modify the real queue as we go
       const queueCopy = [...jobQueue];
 
-      for (let i = 0; i < queueCopy.length; i++) {
-        const job = queueCopy[i];
-        
-        processBtn.innerHTML = `
-          <svg class="pulse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-            <polyline points="17 6 23 6 23 12"></polyline>
-          </svg>
-          Processing ${i + 1}/${queueCopy.length}...
-        `;
-        
-        try {
-          const payload = {
+      processBtn.innerHTML = `
+        <svg class="pulse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+        Processing Batch...
+      `;
+      
+      try {
+        const payload = {
+          jobs: queueCopy.map(job => ({
             url: job.url,
             page_title: job.page_title,
             description: job.description
-          };
+          }))
+        };
 
-          const response = await fetch(`${apiUrl}/api/jobs/extension`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          });
+        const response = await fetch(`${apiUrl}/api/jobs/extension/batch`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
 
-          if (!response.ok) {
-            if (response.status === 401) {
-              chrome.storage.local.remove(['token']);
-              showLoginView();
-              throw new Error("Session expired.");
-            }
-            throw new Error("Server error");
+        if (!response.ok) {
+          if (response.status === 401) {
+            chrome.storage.local.remove(['token']);
+            showLoginView();
+            throw new Error("Session expired.");
           }
-
-          successCount++;
-          // Remove from real queue
-          jobQueue = jobQueue.filter(j => j.id !== job.id);
-          // Save incrementally in case they close the popup
-          await new Promise(resolve => chrome.storage.local.set({ jobQueue }, resolve));
-          renderQueue();
-          
-        } catch (err) {
-          failCount++;
-          console.error("Failed to process job:", job.url, err);
+          throw new Error("Server error");
         }
+
+        successCount = queueCopy.length;
+        // Clear queue completely immediately
+        jobQueue = [];
+        await new Promise(resolve => chrome.storage.local.set({ jobQueue }, resolve));
+        renderQueue();
+        
+      } catch (err) {
+        failCount = queueCopy.length;
+        console.error("Failed to process batch:", err);
       }
 
       processBtn.innerHTML = `

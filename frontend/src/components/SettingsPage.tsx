@@ -246,9 +246,9 @@ export function SettingsPage() {
   }
 
   const [cleaningTrash, setCleaningTrash] = useState(false)
+  const [confirmTrash, setConfirmTrash] = useState(false)
   
   const handleCleanTrash = async () => {
-    if (!confirm("Are you sure you want to permanently delete all items in the trash?")) return
     setCleaningTrash(true)
     try {
       const res = await api.delete("/api/jobs/trash/empty")
@@ -257,6 +257,7 @@ export function SettingsPage() {
       toast("Error emptying trash", "error")
     }
     setCleaningTrash(false)
+    setConfirmTrash(false)
   }
 
   const handleDeleteResume = async (name: string) => {
@@ -736,10 +737,19 @@ export function SettingsPage() {
               placeholder="30"
               min="0"
             />
-            <Button onClick={handleCleanTrash} disabled={cleaningTrash} className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 shrink-0">
-              <Trash2 className="w-4 h-4 mr-2" />
-              {cleaningTrash ? "Cleaning..." : "Clean Trash Now"}
-            </Button>
+            {!confirmTrash ? (
+              <Button onClick={() => setConfirmTrash(true)} disabled={cleaningTrash} className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 shrink-0">
+                <Trash2 className="w-4 h-4 mr-2" />
+                {cleaningTrash ? "Cleaning..." : "Clean Trash Now"}
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0">
+                <Button onClick={() => setConfirmTrash(false)} className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700">Cancel</Button>
+                <Button onClick={handleCleanTrash} disabled={cleaningTrash} className="bg-red-600 text-white hover:bg-red-700">
+                  {cleaningTrash ? "Cleaning..." : "Confirm Delete"}
+                </Button>
+              </div>
+            )}
           </div>
           <p className="text-xs text-zinc-500 mt-1">Jobs in the Trash state older than this will be permanently deleted during cron scrapes. Set to 0 to disable auto-cleanup.</p>
         </div>
