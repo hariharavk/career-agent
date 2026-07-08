@@ -4,30 +4,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const passwordInput = document.getElementById('password');
   
   const loginBtn = document.getElementById('loginBtn');
-  const saveBtn = document.getElementById('saveBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const backBtn = document.getElementById('backBtn');
+  const profileBtn = document.getElementById('profileBtn');
   
   const loginView = document.getElementById('loginView');
   const actionView = document.getElementById('actionView');
+  const settingsView = document.getElementById('settingsView');
   
   const activeUserSpan = document.getElementById('activeUser');
   const statusDiv = document.getElementById('status');
 
-  const jobCompanyInput = document.getElementById('jobCompany');
-  const jobTitleInput = document.getElementById('jobTitle');
-  const parseIndicator = document.getElementById('parseIndicator');
+  const queueList = document.getElementById('queueList');
+  const queueCount = document.getElementById('queueCount');
+  const addBtn = document.getElementById('addBtn');
+  const processBtn = document.getElementById('processBtn');
 
-  const saveIcon = `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-      <polyline points="17 21 17 13 7 13 7 21"/>
-      <polyline points="7 3 7 8 15 8"/>
-    </svg>
-  `;
+  let jobQueue = [];
 
   // Check auth status on load
-  chrome.storage.local.get(['token', 'apiUrl', 'username'], (result) => {
+  chrome.storage.local.get(['token', 'apiUrl', 'username', 'jobQueue'], (result) => {
     if (result.apiUrl) apiUrlInput.value = result.apiUrl;
+    jobQueue = result.jobQueue || [];
     
     if (result.token) {
       showActionView(result.username || 'admin');
@@ -39,62 +37,73 @@ document.addEventListener('DOMContentLoaded', () => {
   function showLoginView() {
     loginView.classList.remove('hidden');
     actionView.classList.add('hidden');
+    settingsView.classList.add('hidden');
+    profileBtn.classList.add('hidden');
     statusDiv.className = "";
     statusDiv.innerText = "";
   }
 
-  async function showActionView(username) {
+  function showActionView(username) {
     loginView.classList.add('hidden');
+    settingsView.classList.add('hidden');
     actionView.classList.remove('hidden');
+    profileBtn.classList.remove('hidden');
+    
     activeUserSpan.innerText = `Connected as ${username}`;
     statusDiv.className = "";
     statusDiv.innerText = "";
+    
+    renderQueue();
+  }
+  
+  function showSettingsView() {
+    actionView.classList.add('hidden');
+    settingsView.classList.remove('hidden');
+    statusDiv.className = "";
+    statusDiv.innerText = "";
+  }
 
-    // Pre-populate & run AI parser immediately
-    saveBtn.disabled = true;
-    parseIndicator.classList.remove('hidden');
-    jobCompanyInput.value = "";
-    jobTitleInput.value = "";
-    jobCompanyInput.disabled = true;
-    jobTitleInput.disabled = true;
+  profileBtn.addEventListener('click', showSettingsView);
+  backBtn.addEventListener('click', () => {
+    chrome.storage.local.get(['username'], (result) => {
+      showActionView(result.username || 'admin');
+    });
+  });
 
-    chrome.storage.local.get(['token', 'apiUrl'], async (stored) => {
-      const { token, apiUrl } = stored;
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) throw new Error("No active tab");
+  function renderQueue() {
+    queueList.innerHTML = '';
+    queueCount.innerText = jobQueue.length;
+    
+    if (jobQueue.length > 0) {
+      processBtn.disabled = false;
+    } else {
+      processBtn.disabled = true;
+    }
 
-        const pageTitle = tab.title || "Unknown Job Page";
-        
-        // Fetch parsing from API
-        const response = await fetch(`${apiUrl}/api/jobs/extension/parse-title?page_title=${encodeURIComponent(pageTitle)}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+    jobQueue.forEach((job, index) => {
+      const li = document.createElement('li');
+      li.className = 'queue-item';
+      
+      const span = document.createElement('span');
+      span.innerText = job.page_title;
+      span.title = job.page_title;
+      
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'remove-btn';
+      rmBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+      rmBtn.onclick = () => {
+        jobQueue.splice(index, 1);
+        chrome.storage.local.set({ jobQueue }, renderQueue);
+      };
 
-        if (!response.ok) {
-          throw new Error("Could not parse");
-        }
-
-        const data = await response.json();
-        jobCompanyInput.value = data.company || "Unknown Company";
-        jobTitleInput.value = data.title || pageTitle;
-      } catch (err) {
-        // Fallback to raw page title
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          jobCompanyInput.value = "Unknown Company";
-          jobTitleInput.value = tab ? tab.title : "Unknown Title";
-        } catch {
-          jobCompanyInput.value = "Unknown Company";
-          jobTitleInput.value = "Unknown Title";
-        }
-      } finally {
-        // Enable fields so the user can review and edit
-        jobCompanyInput.disabled = false;
-        jobTitleInput.disabled = false;
-        parseIndicator.classList.add('hidden');
-        saveBtn.disabled = false;
-      }
+      li.appendChild(span);
+      li.appendChild(rmBtn);
+      queueList.appendChild(li);
     });
   }
 
@@ -142,8 +151,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Handle Save Job
-  saveBtn.addEventListener('click', async () => {
+  // Handle Add to Queue
+  addBtn.addEventListener('click', async () => {
+    addBtn.disabled = true;
+    const originalText = addBtn.innerHTML;
+    addBtn.innerText = "Extracting...";
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) throw new Error("No active tab found");
+
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const clone = document.body.cloneNode(true);
+          const elementsToRemove = clone.querySelectorAll('script, style, noscript, nav, footer, header');
+          elementsToRemove.forEach(el => el.remove());
+          
+          return {
+            url: window.location.href,
+            page_title: document.title,
+            description: clone.innerText.substring(0, 15000)
+          };
+        }
+      });
+
+      // Avoid duplicates based on URL
+      if (jobQueue.find(j => j.url === result.url)) {
+        showStatus("Already in queue!", "success");
+      } else {
+        jobQueue.push({
+          url: result.url,
+          page_title: result.page_title,
+          description: result.description,
+          id: Date.now().toString()
+        });
+        chrome.storage.local.set({ jobQueue }, () => {
+          renderQueue();
+          showStatus("Added to Queue", "success");
+        });
+      }
+    } catch (err) {
+      showStatus(err.message || "Failed to extract page", "error");
+    } finally {
+      addBtn.disabled = false;
+      addBtn.innerHTML = originalText;
+      setTimeout(() => {
+        if (statusDiv.innerText === "Added to Queue" || statusDiv.innerText === "Already in queue!") {
+          statusDiv.className = "";
+          statusDiv.innerText = "";
+        }
+      }, 2000);
+    }
+  });
+
+  // Handle Process Queue
+  processBtn.addEventListener('click', async () => {
     chrome.storage.local.get(['token', 'apiUrl'], async (stored) => {
       const { token, apiUrl } = stored;
       
@@ -153,95 +216,87 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const company = jobCompanyInput.value.trim();
-      const title = jobTitleInput.value.trim();
+      if (jobQueue.length === 0) return;
 
-      if (!company || !title) {
-        showStatus("Please fill in Company and Job Title", "error");
-        return;
-      }
+      processBtn.disabled = true;
+      addBtn.disabled = true;
+      
+      let successCount = 0;
+      let failCount = 0;
 
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = `
-        <svg class="pulse" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        Extracting page content...
-      `;
-      statusDiv.className = "";
-      statusDiv.innerText = "";
+      // Copy queue to iterate, we will modify the real queue as we go
+      const queueCopy = [...jobQueue];
 
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) throw new Error("No active tab found");
-
-        const [{ result }] = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const clone = document.body.cloneNode(true);
-            const elementsToRemove = clone.querySelectorAll('script, style, noscript, nav, footer, header');
-            elementsToRemove.forEach(el => el.remove());
-            
-            return {
-              url: window.location.href,
-              page_title: document.title,
-              description: clone.innerText.substring(0, 15000)
-            };
-          }
-        });
-
-        saveBtn.innerHTML = `
-          <svg class="pulse" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      for (let i = 0; i < queueCopy.length; i++) {
+        const job = queueCopy[i];
+        
+        processBtn.innerHTML = `
+          <svg class="pulse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          Saving & Sanitizing JD...
+          Processing ${i + 1}/${queueCopy.length}...
         `;
+        
+        try {
+          const payload = {
+            url: job.url,
+            page_title: job.page_title,
+            description: job.description
+          };
 
-        // Send custom Company + Title alongside scraped content
-        const payload = {
-          url: result.url,
-          page_title: result.page_title,
-          description: result.description,
-          company: company,
-          title: title
-        };
+          const response = await fetch(`${apiUrl}/api/jobs/extension`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
 
-        const response = await fetch(`${apiUrl}/api/jobs/extension`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            chrome.storage.local.remove(['token']);
-            showLoginView();
-            throw new Error("Session expired. Please log in again.");
+          if (!response.ok) {
+            if (response.status === 401) {
+              chrome.storage.local.remove(['token']);
+              showLoginView();
+              throw new Error("Session expired.");
+            }
+            throw new Error("Server error");
           }
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.detail || "Server returned " + response.status);
-        }
 
-        const data = await response.json();
-        showStatus(`Saved: ${data.company} - ${data.title}`, "success");
-      } catch (err) {
-        showStatus(err.message || "Failed to save job", "error");
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = `${saveIcon} Save Active Job`;
+          successCount++;
+          // Remove from real queue
+          jobQueue = jobQueue.filter(j => j.id !== job.id);
+          // Save incrementally in case they close the popup
+          await new Promise(resolve => chrome.storage.local.set({ jobQueue }, resolve));
+          renderQueue();
+          
+        } catch (err) {
+          failCount++;
+          console.error("Failed to process job:", job.url, err);
+        }
+      }
+
+      processBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        Process Queue
+      `;
+      processBtn.disabled = jobQueue.length === 0;
+      addBtn.disabled = false;
+      
+      if (failCount === 0) {
+        showStatus(`Successfully processed ${successCount} job(s)`, "success");
+      } else {
+        showStatus(`Processed ${successCount}, Failed ${failCount}`, "error");
       }
     });
   });
 
   // Handle Logout
   logoutBtn.addEventListener('click', () => {
-    chrome.storage.local.remove(['token', 'username'], () => {
+    chrome.storage.local.remove(['token', 'username', 'jobQueue'], () => {
+      jobQueue = [];
       showLoginView();
     });
   });

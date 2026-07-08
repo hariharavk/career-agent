@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --background: 240 10% 4%;
@@ -19,22 +19,23 @@
     }
 
     body {
-      width: 340px;
-      font-family: 'Outfit', -apple-system, sans-serif;
-      padding: 20px;
+      width: 400px;
+      font-family: 'Google Sans', -apple-system, sans-serif;
+      padding: 24px;
       background: radial-gradient(circle at top right, hsl(240 10% 12%), hsl(var(--background)));
       color: hsl(var(--text));
       margin: 0;
       box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
     }
 
     h2 { 
-      margin-top: 0; 
-      font-size: 18px; 
+      margin: 0; 
+      font-size: 20px; 
       font-weight: 700; 
       color: hsl(var(--text)); 
-      margin-bottom: 20px; 
       display: flex;
       align-items: center;
       gap: 8px;
@@ -45,9 +46,66 @@
       color: hsl(var(--primary));
     }
 
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .profile-icon {
+      color: hsl(var(--muted));
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .profile-icon:hover {
+      color: hsl(var(--text));
+    }
+
+    .queue-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px 0;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .queue-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .queue-list::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 4px;
+    }
+    .queue-item {
+      background: hsl(var(--background) / 0.5);
+      border: 1px solid hsl(var(--border));
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .queue-item span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .remove-btn {
+      background: none;
+      border: none;
+      color: hsl(var(--error));
+      cursor: pointer;
+      padding: 4px;
+    }
+    .remove-btn:hover {
+      opacity: 0.8;
+    }
+
     .view-card {
-      background: hsl(var(--card) / 0.7);
-      backdrop-filter: blur(12px);
+      background: hsl(var(--card) / 0.85);
       border: 1px solid hsl(var(--border));
       border-radius: 12px;
       padding: 16px;
@@ -60,8 +118,8 @@
 
     label { 
       display: block; 
-      font-size: 11px; 
-      font-weight: 600;
+      font-size: 13px; 
+      font-weight: 700;
       margin-bottom: 6px; 
       color: hsl(var(--muted)); 
       text-transform: uppercase; 
@@ -69,14 +127,15 @@
     }
 
     input {
+      font-family: inherit;
       width: 100%;
       box-sizing: border-box;
-      padding: 10px 14px;
+      padding: 12px 14px;
       background: hsl(var(--background) / 0.5);
       border: 1px solid hsl(var(--border));
       border-radius: 8px;
       color: hsl(var(--text));
-      font-size: 13px;
+      font-size: 14px;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -88,6 +147,7 @@
     }
 
     button.btn-primary {
+      font-family: inherit;
       width: 100%;
       padding: 12px;
       background-color: hsl(var(--primary));
@@ -95,8 +155,8 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
+      font-weight: 700;
+      font-size: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -107,12 +167,41 @@
 
     button.btn-primary:hover { 
       background-color: hsl(var(--primary-hover));
-      transform: translateY(-1px);
       box-shadow: 0 6px 16px hsl(var(--primary) / 0.3);
     }
 
     button.btn-primary:active {
-      transform: translateY(0);
+      box-shadow: 0 2px 8px hsl(var(--primary) / 0.25);
+    }
+
+    button.btn-secondary {
+      font-family: inherit;
+      width: 100%;
+      padding: 12px;
+      background-color: hsl(var(--background));
+      color: hsl(var(--text));
+      border: 1px solid hsl(var(--border));
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    button.btn-secondary:hover { 
+      background-color: hsl(var(--card));
+      border-color: hsl(var(--primary) / 0.5);
+    }
+
+    button.btn-secondary:disabled { 
+      background-color: hsl(var(--background));
+      cursor: not-allowed; 
+      color: hsl(var(--muted));
+      border-color: hsl(var(--border) / 0.5);
     }
 
     button.btn-primary:disabled { 
@@ -125,7 +214,7 @@
 
     #status { 
       margin-top: 16px; 
-      font-size: 12px; 
+      font-size: 13px; 
       font-weight: 500;
       text-align: center; 
       padding: 8px 12px;
@@ -159,7 +248,8 @@
     }
 
     .text-link {
-      font-size: 11px;
+      font-family: inherit;
+      font-size: 13px;
       color: hsl(var(--muted));
       text-decoration: none;
       cursor: pointer;
@@ -186,12 +276,22 @@
   </style>
 </head>
 <body>
-  <h2>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-    </svg>
-    Job Tracker Pro
-  </h2>
+  <div class="header-bar">
+    <h2>
+      <div style="width:24px; height:24px; border-radius: 6px; background: linear-gradient(to bottom right, #2563eb, #4f46e5, #7e22ce); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(79,70,229,0.3);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      </div>
+      CareerAgent
+    </h2>
+    <div id="profileBtn" class="profile-icon hidden">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    </div>
+  </div>
 
   <!-- Login View -->
   <div id="loginView" class="view-card">
@@ -212,40 +312,40 @@
     </button>
   </div>
 
-  <!-- Action View -->
+  <!-- Queue Action View -->
   <div id="actionView" class="view-card hidden">
-    <div id="parseIndicator" style="margin-bottom: 12px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; color: hsl(var(--muted));">
-      <svg class="pulse" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="16"></line>
-        <line x1="8" y1="12" x2="16" y2="12"></line>
-      </svg>
-      Parsing page details with AI...
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <label style="margin: 0;">QUEUE (<span id="queueCount">0</span>)</label>
     </div>
     
-    <div class="input-group">
-      <label for="jobCompany">Company</label>
-      <input type="text" id="jobCompany" placeholder="Loading..." />
-    </div>
-    
-    <div class="input-group" style="margin-bottom: 16px;">
-      <label for="jobTitle">Job Title</label>
-      <input type="text" id="jobTitle" placeholder="Loading..." />
-    </div>
+    <ul id="queueList" class="queue-list">
+      <!-- Dynamically populated -->
+    </ul>
 
-    <button id="saveBtn" class="btn-primary" disabled>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/>
-        <polyline points="7 3 7 8 15 8"/>
+    <button id="addBtn" class="btn-secondary" style="margin-bottom: 12px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>
-      Save Active Job
+      Add Current Page
     </button>
-    
-    <div class="footer-actions">
-      <span id="activeUser" style="font-size: 11px; color: hsl(var(--muted)); font-weight: 500;"></span>
-      <button id="logoutBtn" class="text-link">Log Out</button>
-    </div>
+
+    <button id="processBtn" class="btn-primary" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      Process Queue
+    </button>
+  </div>
+
+  <!-- Settings View -->
+  <div id="settingsView" class="view-card hidden">
+    <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700;">Account Settings</h3>
+    <p style="font-size: 14px; color: hsl(var(--muted)); margin-bottom: 16px;">
+      <span id="activeUser"></span>
+    </p>
+    <button id="logoutBtn" class="btn-primary" style="background-color: hsl(var(--error)); box-shadow: 0 4px 12px hsl(var(--error) / 0.25);">Log Out</button>
+    <button id="backBtn" class="text-link" style="width: 100%; text-align: center; margin-top: 12px;">Back to Queue</button>
   </div>
 
   <div id="status"></div>

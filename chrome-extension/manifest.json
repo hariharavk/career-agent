@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Job Tracker Pro",
+  "name": "CareerAgent",
   "version": "1.0",
-  "description": "Instantly save jobs from any website to your Job Tracker Pro Kanban board.",
+  "description": "Instantly queue and batch-process jobs to your CareerAgent Kanban board using AI.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "permissions": [
     "activeTab",
     "scripting",
@@ -12,6 +17,11 @@
     "<all_urls>"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   }
 }

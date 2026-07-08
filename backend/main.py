@@ -288,6 +288,8 @@ def save_from_extension(payload: ExtensionPayload, db: Session = Depends(get_db)
     settings = crud.get_settings(db)
     api_key = settings.gemini_api_key if settings else None
 
+    model_name = settings.gemini_model if settings else None
+
     # Parse domain for source tag
     try:
         domain = urllib.parse.urlparse(payload.url).netloc
@@ -295,16 +297,29 @@ def save_from_extension(payload: ExtensionPayload, db: Session = Depends(get_db)
         site_name = parts[-2].capitalize() if len(parts) >= 2 else domain
     except Exception:
         site_name = "Extension"
-    location_tag = f"Extension ({site_name})"
+    location_tag = f"Manual - Extension ({site_name})"
 
     # Clean description using AI
     clean_desc = ai_agent.sanitize_job_description(payload.description, api_key)
 
-    company = payload.company.strip() if payload.company else "Unknown Company"
-    title = payload.title.strip() if payload.title else payload.page_title
+    company = payload.company.strip() if payload.company else ""
+    title = payload.title.strip() if payload.title else ""
+    
+    if not company or company == "Unknown Company":
+        parsed = ai_agent.parse_job_page_title(payload.page_title, api_key, model_name)
+        company = parsed.get("company", "Unknown Company")
+        if not title or title == payload.page_title:
+            title = parsed.get("title", payload.page_title)
+            
+    if not company:
+        company = "Unknown Company"
+    if not title:
+        title = payload.page_title
 
     # Save to Kanban
     job = record_job(db, company, title, payload.url, location_tag)
+    db.commit()
+    db.refresh(job)
     
     # Always overwrite the card values with the latest parsed/user-edited values
     update_data = {
@@ -314,7 +329,10 @@ def save_from_extension(payload: ExtensionPayload, db: Session = Depends(get_db)
         "title": title
     }
     job_update = schemas.JobUpdate(**update_data)
-    return crud.update_job_status(db, job.id, job_update)
+    crud.update_job_status(db, job.id, job_update)
+    db.refresh(job)
+    print("RETURNING JOB:", job, "ID:", job.id, flush=True)
+    return job
 
 @app.get("/api/settings", response_model=schemas.Settings)
 def get_settings(db: Session = Depends(get_db)):
