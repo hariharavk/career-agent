@@ -300,6 +300,15 @@ def _process_extension_job(payload: schemas.ExtensionPayload, db_gen, settings, 
         if not title or title == payload.page_title:
             title = parsed.get("title", payload.page_title)
             
+        # If it's still missing or we know it's a feed post (title is "LinkedIn"), ask AI to parse the description
+        if (company == "Unknown Company" or title == "LinkedIn" or title == "Search") and payload.description:
+            parsed_desc = ai_agent.extract_job_details_from_description(payload.description, api_key, model_name)
+            if parsed_desc:
+                if company == "Unknown Company" and parsed_desc.get("company") and parsed_desc.get("company") != "Unknown Company":
+                    company = parsed_desc.get("company")
+                if (title == "LinkedIn" or title == "Search" or title == payload.page_title) and parsed_desc.get("title") and parsed_desc.get("title") != "Unknown Title":
+                    title = parsed_desc.get("title")
+            
     if not company: company = "Unknown Company"
     if not title: title = payload.page_title
 
@@ -326,14 +335,56 @@ def process_batch_background(payloads: List[schemas.ExtensionPayload], settings:
     db = next(db_gen)
     
     jobs_to_evaluate = []
-    for payload in payloads:
-        try:
-            # Pass the same session so objects stay attached
-            job = _process_extension_job(payload, iter([db]), settings, api_key, model_name)
-            jobs_to_evaluate.append({"url": job.url})
-        except Exception as e:
-            logger.error(f"Failed background extension job: {e}")
-            
+    
+    chunk_size = 5
+    for i in range(0, len(payloads), chunk_size):
+        chunk = payloads[i:i + chunk_size]
+        
+        jobs_for_ai = [{"description": p.description, "url": p.url} for p in chunk]
+        ai_results = ai_agent.batch_extract_job_details(jobs_for_ai, api_key, model_name)
+        
+        for j, payload in enumerate(chunk):
+            try:
+                import urllib.parse
+                try:
+                    domain = urllib.parse.urlparse(payload.url).netloc
+                    parts = domain.replace("www.", "").split(".")
+                    site_name = parts[-2].capitalize() if len(parts) >= 2 else domain
+                except:
+                    site_name = "Extension"
+                location_tag = f"Manual - Extension ({site_name})"
+                
+                ai_company = ai_results[j].get("company", "Unknown Company")
+                ai_title = ai_results[j].get("title", "Unknown Title")
+                clean_desc = ai_results[j].get("clean_description", payload.description)
+                
+                company = payload.company.strip() if payload.company else ""
+                title = payload.title.strip() if payload.title else ""
+                
+                if not company or company == "Unknown Company":
+                    company = ai_company
+                if not title or title == payload.page_title or title == "LinkedIn" or title == "Search":
+                    title = ai_title
+                    
+                if not company: company = "Unknown Company"
+                if not title: title = payload.page_title
+                
+                job = record_job(db, company, title, payload.url, location_tag)
+                db.commit()
+                db.refresh(job)
+                
+                update_data = {
+                    "description": clean_desc, "location": location_tag,
+                    "company": company, "title": title
+                }
+                job_update = schemas.JobUpdate(**update_data)
+                crud.update_job_status(db, job.id, job_update)
+                db.refresh(job)
+                
+                jobs_to_evaluate.append({"url": job.url})
+            except Exception as e:
+                logger.error(f"Failed background extension job: {e}")
+                
     if jobs_to_evaluate:
         from .scraper_core import bulk_evaluate_jobs
         try:
@@ -390,6 +441,15 @@ def save_from_extension(payload: ExtensionPayload, db: Session = Depends(get_db)
         company = parsed.get("company", "Unknown Company")
         if not title or title == payload.page_title:
             title = parsed.get("title", payload.page_title)
+            
+        # If it's still missing or we know it's a feed post (title is "LinkedIn"), ask AI to parse the description
+        if (company == "Unknown Company" or title == "LinkedIn" or title == "Search") and payload.description:
+            parsed_desc = ai_agent.extract_job_details_from_description(payload.description, api_key, model_name)
+            if parsed_desc:
+                if company == "Unknown Company" and parsed_desc.get("company") and parsed_desc.get("company") != "Unknown Company":
+                    company = parsed_desc.get("company")
+                if (title == "LinkedIn" or title == "Search" or title == payload.page_title) and parsed_desc.get("title") and parsed_desc.get("title") != "Unknown Title":
+                    title = parsed_desc.get("title")
             
     if not company:
         company = "Unknown Company"

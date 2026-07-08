@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const queueList = document.getElementById('queueList');
   const queueCount = document.getElementById('queueCount');
-  const addBtn = document.getElementById('addBtn');
   const processBtn = document.getElementById('processBtn');
 
   let jobQueue = [];
@@ -161,66 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Handle Add to Queue
-  addBtn.addEventListener('click', async () => {
-    addBtn.disabled = true;
-    const originalText = addBtn.innerHTML;
-    addBtn.innerText = "Extracting...";
 
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab || !tab.url) throw new Error("No active tab found");
-
-      try {
-        const tabUrl = new URL(tab.url);
-        const isAllowed = allowedSites.some(site => tabUrl.hostname.includes(site));
-        if (!isAllowed) {
-          throw new Error("Current site is not in your allowed whitelist");
-        }
-      } catch (e) {
-        if (e.message.includes("whitelist")) throw e;
-        throw new Error("Invalid URL");
-      }
-
-      const [{ result }] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          return {
-            url: window.location.href,
-            page_title: document.title,
-            description: document.body.innerText.substring(0, 15000)
-          };
-        }
-      });
-
-      // Avoid duplicates based on URL
-      if (jobQueue.find(j => j.url === result.url)) {
-        showStatus("Already in queue!", "success");
-      } else {
-        jobQueue.push({
-          url: result.url,
-          page_title: result.page_title,
-          description: result.description,
-          id: Date.now().toString()
-        });
-        chrome.storage.local.set({ jobQueue }, () => {
-          renderQueue();
-          showStatus("Added to Queue", "success");
-        });
-      }
-    } catch (err) {
-      showStatus(err.message || "Failed to extract page", "error");
-    } finally {
-      addBtn.disabled = false;
-      addBtn.innerHTML = originalText;
-      setTimeout(() => {
-        if (statusDiv.innerText === "Added to Queue" || statusDiv.innerText === "Already in queue!") {
-          statusDiv.className = "";
-          statusDiv.innerText = "";
-        }
-      }, 2000);
-    }
-  });
 
   // Handle Process Queue
   processBtn.addEventListener('click', async () => {
@@ -236,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (jobQueue.length === 0) return;
 
       processBtn.disabled = true;
-      addBtn.disabled = true;
       
       let successCount = 0;
       let failCount = 0;
@@ -280,10 +219,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         successCount = queueCopy.length;
-        // Clear queue completely immediately
-        jobQueue = [];
-        await new Promise(resolve => chrome.storage.local.set({ jobQueue }, resolve));
-        renderQueue();
+        // Save processed URLs so the content script knows they are evaluated
+        const processedUrls = queueCopy.map(j => j.url);
+        chrome.storage.local.get(['processedJobs'], (res) => {
+          const oldProcessed = res.processedJobs || [];
+          const newProcessed = [...new Set([...oldProcessed, ...processedUrls])];
+          // Clear queue and save processed list
+          jobQueue = [];
+          chrome.storage.local.set({ jobQueue, processedJobs: newProcessed }, () => {
+            renderQueue();
+          });
+        });
         
       } catch (err) {
         failCount = queueCopy.length;
@@ -297,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
         Process Queue
       `;
       processBtn.disabled = jobQueue.length === 0;
-      addBtn.disabled = false;
       
       if (failCount === 0) {
         showStatus(`Successfully processed ${successCount} job(s)`, "success");

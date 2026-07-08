@@ -349,6 +349,63 @@ def _generate_ollama(prompt: str, settings: any, output_schema: BaseModel) -> st
             
     return f"Error: Local generation failed - {last_err}"
 
+def extract_job_details_from_description(description: str, api_key: str = None, model_name: str = None) -> dict:
+    prompt = f"""
+    You are an expert at parsing raw job descriptions and LinkedIn feed posts.
+    Extract the Company Name and Job Title from this raw text.
+    If you cannot find a company name, output "Unknown Company".
+    If you cannot find a job title, output "Unknown Title".
+    
+    Text:
+    {description[:2500]}
+    
+    Output strictly as JSON in this exact format:
+    {{"company": "...", "title": "..."}}
+    """
+    try:
+        res = _generate(prompt, api_key, model_name)
+        import json
+        clean_json = res.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except Exception as e:
+        logger.error(f"Failed to extract details from description: {e}")
+        return {}
+
+def batch_extract_job_details(jobs: list, api_key: str = None, model_name: str = None) -> list:
+    """Takes a list of dictionaries with 'description' and returns a list of dicts with company, title, clean_description."""
+    if not jobs:
+        return []
+        
+    prompt = f"""
+    You are an expert at parsing raw job descriptions and LinkedIn feed posts.
+    I am providing you {len(jobs)} raw job descriptions/posts.
+    For each one, extract the Company Name and Job Title. If unknown, output "Unknown Company" / "Unknown Title".
+    Then, clean and sanitize the description into nicely formatted Markdown (remove cookies, headers, etc.).
+    
+    Output strictly as a JSON array in the exact same order as the input.
+    Format:
+    [
+      {{"company": "...", "title": "...", "clean_description": "..."}},
+      ...
+    ]
+    
+    Data:
+    """
+    for i, job in enumerate(jobs):
+        prompt += f"\n\n--- JOB {i} ---\n{job['description'][:4000]}\n"
+        
+    try:
+        res = _generate(prompt, api_key, model_name)
+        import json
+        clean_json = res.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(clean_json)
+        if isinstance(parsed, list) and len(parsed) == len(jobs):
+            return parsed
+    except Exception as e:
+        logger.error(f"Failed to batch extract details: {e}")
+    
+    return [{"company": "Unknown Company", "title": "Unknown Title", "clean_description": j["description"]} for j in jobs]
+
 def _route_generation(prompt: str, mode: str, settings: any, is_tex: bool = False, is_cl: bool = False) -> str:
     """Factory router for multi-provider AI generation."""
     if mode == "ollama":
