@@ -264,4 +264,57 @@ document.addEventListener('DOMContentLoaded', () => {
     statusDiv.className = className;
     statusDiv.innerText = message;
   }
+
+  // Handle Auto-Scrape
+  const autoScrapeBtn = document.getElementById('autoScrapeBtn');
+  const stopScrapeBtn = document.getElementById('stopScrapeBtn');
+  
+  if (autoScrapeBtn && stopScrapeBtn) {
+    // Check initial state when popup opens
+    chrome.storage.local.get(['isScraping'], (res) => {
+      if (res.isScraping) {
+        autoScrapeBtn.style.display = 'none';
+        stopScrapeBtn.style.display = 'flex';
+      }
+    });
+
+    autoScrapeBtn.addEventListener('click', () => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs.length === 0) return;
+        const tab = tabs[0];
+        
+        if (!tab.url.includes('linkedin.com') && !tab.url.includes('naukri.com')) {
+          showStatus("Auto-scrape only works on LinkedIn or Naukri.", "error");
+          return;
+        }
+        
+        autoScrapeBtn.style.display = 'none';
+        stopScrapeBtn.style.display = 'flex';
+        chrome.storage.local.set({ isScraping: true });
+        
+        chrome.tabs.sendMessage(tab.id, { action: 'START_AUTO_SCRAPE' }, (response) => {
+          if (chrome.runtime.lastError) {
+            showStatus("Please refresh the page before scraping.", "error");
+            autoScrapeBtn.style.display = 'flex';
+            stopScrapeBtn.style.display = 'none';
+            chrome.storage.local.set({ isScraping: false });
+            return;
+          }
+        });
+      });
+    });
+
+    stopScrapeBtn.addEventListener('click', () => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs.length === 0) return;
+        
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'STOP_AUTO_SCRAPE' });
+        
+        autoScrapeBtn.style.display = 'flex';
+        stopScrapeBtn.style.display = 'none';
+        chrome.storage.local.set({ isScraping: false });
+        showStatus("Auto-scrape stopped.", "success");
+      });
+    });
+  }
 });

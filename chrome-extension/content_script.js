@@ -1,19 +1,13 @@
 console.log("CareerAgent: Content script initialized on", window.location.href);
 
 function injectCareerAgentButton() {
-  const url = window.location.href;
-  
-  // LinkedIn Job Pages (both direct view and search split-view)
-  if (url.includes('linkedin.com/jobs') || url.includes('linkedin.com/collections')) {
+  // Only run on LinkedIn or Naukri
+  if (window.location.hostname.includes('linkedin.com')) {
     injectLinkedInJobPage();
-  } 
-  // LinkedIn Feed (home page) and ANY other LinkedIn page (since posts can appear anywhere)
-  if (url.includes('linkedin.com')) {
     injectLinkedInFeed();
-  } 
-  // Naukri
-  if (url.includes('naukri.com')) {
+  } else if (window.location.hostname.includes('naukri.com')) {
     injectNaukriJobPage();
+    injectNaukriListCards();
   }
 }
 
@@ -191,40 +185,238 @@ function createFeedNativeButton(dataGetter) {
 }
 
 function injectNaukriJobPage() {
-  // Naukri apply button container
-  const actionContainers = document.querySelectorAll('.apply-button-container, .job-apply');
+  // Look for any button or link that acts as Apply or Save to bypass CSS module hashes
+  const allButtons = document.querySelectorAll('button, a');
   
-  actionContainers.forEach(container => {
-    if (!container.querySelector('.ca-save-btn')) {
-      const btn = createSaveButton('Save to CareerAgent', () => {
-        return { url: cleanUrl(window.location.href), description: document.body.innerText, page_title: document.title };
-      });
-      checkQueueState(cleanUrl(window.location.href), btn);
-      container.appendChild(btn);
+  allButtons.forEach(nativeBtn => {
+    const text = nativeBtn.innerText ? nativeBtn.innerText.trim().toLowerCase() : '';
+    
+    // Target the primary action buttons
+    if (text === 'apply' || text === 'save' || text.includes('apply on company site') || text.includes('apply on recruiter site')) {
+      
+      // Prevent injecting into list view cards since injectNaukriListCards handles them
+      if (nativeBtn.closest('.jobTuple, .srp-jobtuple-wrapper, .cust-job-tuple')) return;
+      
+      const nativeWrapper = nativeBtn.parentElement;
+      
+      // Ensure we haven't already injected into this specific action row
+      if (nativeWrapper && !nativeWrapper.querySelector('.ca-save-btn')) {
+        
+        // We only want to inject in actual action bars (flex containers holding multiple buttons)
+        if (nativeWrapper.children.length > 0) {
+          
+          // Find the Apply button to steal its native classes for perfect styling
+          const applyBtn = Array.from(nativeWrapper.querySelectorAll('button, a')).find(b => b.innerText && b.innerText.toLowerCase().includes('apply')) || nativeBtn;
+          
+          const btn = createSaveButton('Save to CareerAgent', () => {
+            return { 
+              url: cleanUrl(window.location.href), 
+              description: document.body.innerText, 
+              page_title: document.title 
+            };
+          }, true); // pass unstyled=true
+          
+          // Inherit all native classes for perfect size, shape, and height
+          btn.className = `${applyBtn.className} ca-save-btn`;
+          
+          // CRITICAL FIX: Naukri's native class applies a fixed width to the "Apply" button.
+          // Because our text ("Save to CareerAgent" or "Evaluated") is longer, it wraps 
+          // and turns the button into a giant blob. We must override the width to stretch!
+          btn.style.width = 'auto';
+          btn.style.minWidth = 'max-content';
+          btn.style.whiteSpace = 'nowrap';
+          btn.style.marginLeft = '12px';
+          
+          checkQueueState(cleanUrl(window.location.href), btn);
+          
+          nativeWrapper.appendChild(btn);
+        }
+      }
     }
   });
 }
 
-function createSaveButton(text, dataGetter) {
+function injectNaukriListCards() {
+  // Search for Naukri job cards in list views
+  const jobCards = document.querySelectorAll('.jobTuple, .srp-jobtuple-wrapper, .cust-job-tuple');
+  
+  jobCards.forEach(card => {
+    if (!card.querySelector('.ca-save-btn')) {
+      // Find the title element, which might be an <a> or a <p>
+      const titleEl = card.querySelector('a.title, p.title, .title');
+      if (titleEl) {
+        
+        let url = '';
+        if (titleEl.tagName === 'A' && titleEl.href) {
+          url = cleanUrl(titleEl.href);
+        } else {
+          // If no anchor, try to find any link in the card
+          const anyLink = card.querySelector('a');
+          if (anyLink && anyLink.href) {
+            url = cleanUrl(anyLink.href);
+          } else {
+            // Fallback: Construct a dummy URL using the job ID so we can uniquely identify it
+            const jobId = card.getAttribute('data-job-id') || card.id || Date.now().toString();
+            url = `https://www.naukri.com/job-listings-${jobId}`;
+          }
+        }
+        
+        // Find the native save tag to inject next to it
+        let saveTag = card.querySelector('.save-job-tag, .un-saved');
+        if (!saveTag) {
+          // Try alternative layout (.saveJobContainer containing 'save')
+          const containers = card.querySelectorAll('.saveJobContainer');
+          saveTag = Array.from(containers).find(el => el.innerText.toLowerCase().includes('save'));
+        }
+        
+        if (saveTag && !saveTag.parentElement.classList.contains('ca-action-group')) {
+          const btn = createNaukriNativeButton(async () => {
+            const hideToast = showToast('Fetching full JD in background...', 0); // 0 means stay indefinitely until hideToast is called
+            try {
+              // Silently fetch the full job posting HTML to get the full context
+              // Enforce a minimum 800ms wait so the toast doesn't flicker instantly if cached
+              const minWait = new Promise(resolve => setTimeout(resolve, 800));
+              const [res] = await Promise.all([fetch(url).catch(() => null), minWait]);
+              
+              if (res && res.ok) {
+                const html = await res.text();
+                
+                // Parse HTML to extract just the body text or specific JD container
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const jdContainer = doc.querySelector('.job-desc, .dang-inner-html, section.job-desc, .styles_Jym__MvstK');
+                const description = jdContainer ? jdContainer.innerText : doc.body.innerText;
+                
+                hideToast();
+                return {
+                  url: url,
+                  description: description,
+                  page_title: titleEl.innerText
+                };
+              } else {
+                throw new Error('Could not fetch valid JD page');
+              }
+            } catch (e) {
+              console.error('CareerAgent: Failed to fetch full JD in background, falling back to card text:', e);
+              hideToast();
+              return {
+                url: url,
+                description: card.innerText,
+                page_title: titleEl.innerText
+              };
+            }
+          });
+          
+          checkQueueState(url, btn);
+          
+          // Group the native save button and our button together so they align perfectly on the right
+          const group = document.createElement('div');
+          group.className = 'ca-action-group';
+          group.style.display = 'flex';
+          group.style.alignItems = 'center';
+          group.style.gap = '16px';
+          
+          // If the native tag was floated right, pass that float up to the group
+          if (saveTag.classList.contains('fright') || window.getComputedStyle(saveTag).float === 'right') {
+            group.style.float = 'right';
+          }
+          
+          saveTag.after(group);
+          group.appendChild(saveTag); // Move native tag into group
+          group.appendChild(btn); // Add ours next to it
+        }
+      }
+    }
+  });
+}
+
+function createNaukriNativeButton(dataGetter) {
+  const btn = document.createElement('button');
+  btn.className = 'ca-save-btn ca-feed-native-btn';
+  btn.style.display = 'flex';
+  btn.style.alignItems = 'center';
+  btn.style.gap = '4px';
+  btn.style.background = 'transparent';
+  btn.style.border = 'none';
+  btn.style.color = '#8292af'; // Naukri's native grey text color
+  btn.style.fontSize = '13px';
+  btn.style.fontWeight = '500';
+  btn.style.cursor = 'pointer';
+  btn.style.padding = '0';
+  btn.style.marginLeft = '12px';
+  
+  const bookmarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+  </svg>`;
+
+  btn.innerHTML = `
+    <span style="display: flex; align-items: center; color: inherit; gap: 4px;">
+      ${bookmarkSvg}
+      <span>Agent Save</span>
+    </span>
+  `;
+  
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    btn.style.pointerEvents = 'none';
+    const textSpan = btn.querySelector('span > span');
+    if (textSpan) textSpan.innerText = 'Queuing...';
+    
+    let jobData = typeof dataGetter === 'function' ? dataGetter() : dataGetter;
+    if (jobData && typeof jobData.then === 'function') {
+      jobData = await jobData;
+    }
+    
+    showToast('✅ Saved to CareerAgent Queue!');
+    
+    chrome.storage.local.get(['jobQueue'], (result) => {
+      const queue = result.jobQueue || [];
+      if (!queue.find(j => j.url === jobData.url)) {
+        queue.push({
+          url: jobData.url,
+          page_title: jobData.page_title,
+          description: jobData.description,
+          id: Date.now().toString()
+        });
+        chrome.storage.local.set({ jobQueue: queue }, () => {
+          btn.style.color = '#ea580c';
+          if (textSpan) textSpan.innerText = 'Queued';
+        });
+      } else {
+        btn.style.color = '#ea580c';
+        if (textSpan) textSpan.innerText = 'Queued';
+      }
+    });
+  });
+  
+  return btn;
+}
+
+function createSaveButton(text, dataGetter, unstyled = false) {
   const btn = document.createElement('button');
   btn.className = 'ca-save-btn';
   btn.innerText = text;
-  btn.style.backgroundColor = '#0a66c2'; // LinkedIn Blue
-  btn.style.color = 'white';
-  btn.style.border = 'none';
-  btn.style.borderRadius = '16px';
-  btn.style.height = '32px';
-  btn.style.padding = '0 16px';
-  btn.style.fontWeight = '600';
-  btn.style.cursor = 'pointer';
-  btn.style.marginLeft = '0px'; // Wrapper already has margin
-  btn.style.fontSize = '14px';
-  btn.style.display = 'inline-flex';
-  btn.style.alignItems = 'center';
-  btn.style.justifyContent = 'center';
-  btn.style.boxSizing = 'border-box';
   
-  btn.addEventListener('click', (e) => {
+  if (!unstyled) {
+    // Base styling - mimics LinkedIn's primary button
+    btn.style.backgroundColor = '#0a66c2';
+    btn.style.color = 'white';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '16px';
+    btn.style.height = '32px';
+    btn.style.padding = '0 16px';
+    btn.style.fontWeight = '600';
+    btn.style.fontSize = '14px';
+    btn.style.display = 'inline-flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+    btn.style.boxSizing = 'border-box';
+  }
+  
+  btn.style.cursor = 'pointer';
+  
+  btn.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -234,7 +426,12 @@ function createSaveButton(text, dataGetter) {
     
     showToast('✅ Saved to CareerAgent Queue!');
     
-    const jobData = typeof dataGetter === 'function' ? dataGetter() : dataGetter;
+    let jobData = typeof dataGetter === 'function' ? dataGetter() : dataGetter;
+    
+    // If it's a promise (e.g. from a background fetch), wait for it
+    if (jobData && typeof jobData.then === 'function') {
+      jobData = await jobData;
+    }
     
     chrome.storage.local.get(['jobQueue'], (result) => {
       const queue = result.jobQueue || [];
@@ -367,51 +564,179 @@ function injectToastStyles() {
   }
 }
 
-function showToast(message) {
-  injectToastStyles();
-  
+// ----------------------------------------------------------------------
+// Toast Notification System
+// ----------------------------------------------------------------------
+function showToast(message, duration = 4000) {
+  let container = document.getElementById('ca-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'ca-toast-container';
+    container.style.position = 'fixed';
+    container.style.bottom = '24px';
+    container.style.left = '24px'; // Moved back to the left!
+    // Removed translateX(-50%) so it aligns cleanly to the left edge
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column-reverse'; // New toasts push old ones up
+    container.style.gap = '12px';
+    container.style.zIndex = '999999';
+    container.style.pointerEvents = 'none'; // Don't block clicks underneath
+    container.style.alignItems = 'flex-start'; // Ensure toasts align to the left of the container
+    document.body.appendChild(container);
+  }
+
   const toast = document.createElement('div');
-  const cleanMessage = message.replace('✅ ', '');
-  
-  toast.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" style="width: 20px; height: 20px; display: block;">
-        <circle class="ca-checkmark-circle" cx="26" cy="26" r="25" />
-        <path class="ca-checkmark-check" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
-      </svg>
-      <span>${cleanMessage}</span>
-    </div>
-  `;
-  
-  toast.style.position = 'fixed';
-  toast.style.bottom = '24px';
-  toast.style.left = '24px';
   toast.style.backgroundColor = '#1e293b'; // Slate 800
-  toast.style.color = '#ffffff';
+  toast.style.color = '#f8fafc'; // Slate 50
   toast.style.padding = '12px 24px';
   toast.style.borderRadius = '8px'; // Standard shape
   toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
   toast.style.fontFamily = '"Google Sans", "Product Sans", sans-serif';
   toast.style.fontSize = '14px';
   toast.style.fontWeight = '500';
-  toast.style.zIndex = '999999';
-  toast.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
   toast.style.opacity = '0';
-  toast.style.transform = 'translateY(20px)';
+  toast.style.transform = 'translateY(20px) scale(0.95)'; // Start slightly down and smaller
+  toast.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
   
-  document.body.appendChild(toast);
+  // Decide icon and accent color based on message content
+  let svgIcon = '';
+  toast.style.borderLeft = '4px solid #10b981'; // Default Emerald
   
-  // Trigger animation
+  if (message.includes('Fetching') || message.includes('Queuing') || message.includes('Started')) {
+    toast.style.borderLeftColor = '#3b82f6'; // Blue
+    svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+      </path>
+    </svg>`;
+  } else if (message.includes('Stopped') || message.includes('Failed')) {
+    toast.style.borderLeftColor = '#ef4444'; // Red
+    svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="15" y1="9" x2="9" y2="15"></line>
+      <line x1="9" y1="9" x2="15" y2="15"></line>
+    </svg>`;
+  } else {
+    // Default green check
+    svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" style="width: 20px; height: 20px; ">
+      <circle cx="26" cy="26" r="25" fill="none" stroke="#10b981" stroke-width="2" />
+      <path fill="none" stroke="#10b981" stroke-width="2" d="M14.1 27.2l7.1 7.2 16.7-16.8" stroke-dasharray="34" stroke-dashoffset="34">
+        <animate attributeName="stroke-dashoffset" from="34" to="0" dur="0.4s" fill="freeze" begin="0.2s" />
+      </path>
+    </svg>`;
+  }
+
+  // Strip emojis from message since we have cool SVGs now
+  const cleanMessage = message.replace('✅ ', '').replace('🤖 ', '').replace('🛑 ', '');
+
+  toast.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px; pointer-events: auto;">
+      ${svgIcon}
+      <span>${cleanMessage}</span>
+    </div>
+  `;
+  
+  // Insert at beginning (which displays at the bottom due to column-reverse)
+  container.insertBefore(toast, container.firstChild);
+  
+  // Force reflow
+  toast.offsetHeight;
+  
+  // Animate in
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      toast.style.opacity = '1';
-      toast.style.transform = 'translateY(0)';
-    });
+    toast.style.transform = 'translateY(0) scale(1)';
+    toast.style.opacity = '1';
   });
   
-  setTimeout(() => {
+  const removeToast = () => {
+    if (!toast.parentNode) return;
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(20px)';
-    setTimeout(() => toast.remove(), 400);
-  }, 3000);
+    toast.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+      if (container.children.length === 0 && container.parentNode) container.remove();
+    }, 400);
+  };
+  
+  // Animate out and remove after duration (if greater than 0)
+  if (duration > 0) {
+    setTimeout(removeToast, duration);
+  }
+  
+  return removeToast;
+}
+
+// ----------------------------------------------------------------------
+// Auto-Scraper Logic
+// ----------------------------------------------------------------------
+let isAutoScraping = false;
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'START_AUTO_SCRAPE') {
+    if (!isAutoScraping) startAutoScrape();
+    sendResponse({ started: true });
+    return true;
+  }
+  
+  if (request.action === 'STOP_AUTO_SCRAPE') {
+    isAutoScraping = false;
+    chrome.storage.local.set({ isScraping: false });
+    showToast('🛑 Auto-Scrape Stopped.');
+    sendResponse({ stopped: true });
+    return true;
+  }
+});
+
+async function startAutoScrape() {
+  isAutoScraping = true;
+  chrome.storage.local.set({ isScraping: true });
+  
+  showToast('🤖 Auto-Scraper Started! Please do not click anything...');
+  
+  const delay = (ms) => new Promise(res => setTimeout(res, ms));
+  
+  // Find all unqueued ca-save-btn buttons currently on the page
+  let buttons = Array.from(document.querySelectorAll('.ca-save-btn:not([style*="pointer-events: none"])'));
+  let savedCount = 0;
+  
+  // If no buttons, try scrolling down slightly to trigger lazy loading
+  if (buttons.length === 0) {
+    window.scrollBy(0, window.innerHeight);
+    await delay(2000);
+    buttons = Array.from(document.querySelectorAll('.ca-save-btn:not([style*="pointer-events: none"])'));
+  }
+  
+  // Scrape up to 50 jobs at a time to avoid bans
+  for (let i = 0; i < buttons.length && i < 50; i++) {
+    if (!isAutoScraping) break; // Check if user stopped it
+    
+    const btn = buttons[i];
+    
+    // Scroll element into view smoothly
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    await delay(800); // Small pause after scrolling
+    
+    if (!isAutoScraping) break;
+    
+    // Check if it's already queued (safety check)
+    if (btn.style.pointerEvents === 'none') continue;
+    
+    btn.click();
+    savedCount++;
+    
+    // Random delay between 2-5 seconds to mimic human reading/clicking
+    const humanDelay = Math.floor(Math.random() * 3000) + 2000;
+    await delay(humanDelay);
+  }
+  
+  if (isAutoScraping) {
+    if (savedCount > 0) {
+      showToast(`✅ Auto-Scrape Finished! Saved ${savedCount} jobs to Queue.`);
+    } else {
+      showToast(`🤖 Auto-Scrape Finished! No new jobs found on this page.`);
+    }
+  }
+  
+  isAutoScraping = false;
+  chrome.storage.local.set({ isScraping: false });
 }
