@@ -288,9 +288,15 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         
+        const pagesToScrape = parseInt(document.getElementById('scrapePages').value) || 5;
+        
         autoScrapeBtn.style.display = 'none';
         stopScrapeBtn.style.display = 'flex';
-        chrome.storage.local.set({ isScraping: true });
+        chrome.storage.local.set({ 
+          isScraping: true,
+          targetPages: pagesToScrape,
+          pagesScraped: 0
+        });
         
         chrome.tabs.sendMessage(tab.id, { action: 'START_AUTO_SCRAPE' }, (response) => {
           if (chrome.runtime.lastError) {

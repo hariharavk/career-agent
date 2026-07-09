@@ -70,7 +70,7 @@ function checkQueueState(url, btn) {
     } else if (queue.find(j => j.url === url)) {
       if (isNative) {
         btn.style.color = '#ea580c'; // Orange
-        const textSpan = btn.querySelector('span > span');
+        const textSpan = btn.querySelector('.ca-dynamic-text, .saveSpn, span > span');
         if (textSpan) textSpan.innerText = 'Queued';
       } else {
         btn.innerText = 'Saved to Queue';
@@ -133,6 +133,7 @@ function createFeedNativeButton(dataGetter) {
   btn.style.transition = 'color 0.2s';
   btn.style.border = 'none';
   btn.style.background = 'transparent';
+  btn.style.fontFamily = '"Outfit", "Google Sans", sans-serif';
   
   // Unsaved: Blue
   btn.style.color = '#0a66c2';
@@ -269,8 +270,9 @@ function injectNaukriListCards() {
           saveTag = Array.from(containers).find(el => el.innerText.toLowerCase().includes('save'));
         }
         
-        if (saveTag && !saveTag.parentElement.classList.contains('ca-action-group')) {
-          const btn = createNaukriNativeButton(async () => {
+        if (saveTag && !saveTag.parentElement.classList.contains('ca-injected')) {
+          saveTag.parentElement.classList.add('ca-injected'); // Mark container so we don't double inject
+          const btn = cloneNaukriNativeButton(saveTag, async () => {
             const hideToast = showToast('Fetching full JD in background...', 0); // 0 means stay indefinitely until hideToast is called
             try {
               // Silently fetch the full job posting HTML to get the full context
@@ -308,59 +310,81 @@ function injectNaukriListCards() {
           
           checkQueueState(url, btn);
           
-          // Group the native save button and our button together so they align perfectly on the right
+          // The user wants to group the buttons on the right side next to the native save button
+          // This provides a much better UX as all "save" actions are in the same logical area.
           const group = document.createElement('div');
           group.className = 'ca-action-group';
-          group.style.display = 'flex';
+          group.style.display = 'inline-flex';
           group.style.alignItems = 'center';
           group.style.gap = '16px';
           
-          // If the native tag was floated right, pass that float up to the group
-          if (saveTag.classList.contains('fright') || window.getComputedStyle(saveTag).float === 'right') {
+          const compStyle = window.getComputedStyle(saveTag);
+          
+          // Inherit layout mechanics from the native button onto our group wrapper
+          if (compStyle.position === 'absolute') {
+            group.style.position = 'absolute';
+            group.style.right = compStyle.right;
+            group.style.top = compStyle.top;
+            group.style.bottom = compStyle.bottom;
+            saveTag.style.setProperty('position', 'static', 'important');
+          } else if (compStyle.float === 'right' || saveTag.classList.contains('fright')) {
             group.style.float = 'right';
+            saveTag.style.setProperty('float', 'none', 'important');
           }
           
           saveTag.after(group);
-          group.appendChild(saveTag); // Move native tag into group
-          group.appendChild(btn); // Add ours next to it
+          group.appendChild(btn); // Put our button first
+          group.appendChild(saveTag); // Then the native save button
         }
       }
     }
   });
 }
 
-function createNaukriNativeButton(dataGetter) {
-  const btn = document.createElement('button');
-  btn.className = 'ca-save-btn ca-feed-native-btn';
-  btn.style.display = 'flex';
-  btn.style.alignItems = 'center';
-  btn.style.gap = '4px';
-  btn.style.background = 'transparent';
-  btn.style.border = 'none';
-  btn.style.color = '#8292af'; // Naukri's native grey text color
-  btn.style.fontSize = '13px';
-  btn.style.fontWeight = '500';
+function cloneNaukriNativeButton(nativeSaveNode, dataGetter) {
+  // Clone the exact DOM structure of Naukri's native button so we get identical styling/alignment
+  const btn = nativeSaveNode.cloneNode(true);
+  btn.classList.add('ca-save-btn', 'ca-feed-native-btn');
   btn.style.cursor = 'pointer';
-  btn.style.padding = '0';
-  btn.style.marginLeft = '12px';
   
-  const bookmarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-  </svg>`;
-
-  btn.innerHTML = `
-    <span style="display: flex; align-items: center; color: inherit; gap: 4px;">
-      ${bookmarkSvg}
-      <span>Agent Save</span>
-    </span>
-  `;
+  // Strip any IDs that Naukri's framework might use to attach native event listeners
+  btn.removeAttribute('id');
+  
+  // Force the cloned button to flow statically in our flex group
+  btn.style.setProperty('position', 'static', 'important');
+  btn.style.setProperty('float', 'none', 'important');
+  btn.style.setProperty('margin', '0', 'important');
+  
+  // Find the text node containing 'save' and replace it with our own span
+  const walker = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT, null, false);
+  let textNodeToReplace = null;
+  let node;
+  while ((node = walker.nextNode())) {
+     if (node.nodeValue.toLowerCase().includes('save')) {
+         textNodeToReplace = node;
+         break;
+     }
+  }
+  
+  if (textNodeToReplace) {
+     const span = document.createElement('span');
+     span.className = 'ca-dynamic-text';
+     span.innerText = 'Agent Save';
+     textNodeToReplace.parentNode.replaceChild(span, textNodeToReplace);
+  } else {
+     // Fallback if no text node was found
+     const span = document.createElement('span');
+     span.className = 'ca-dynamic-text';
+     span.innerText = 'Agent Save';
+     btn.appendChild(span);
+  }
   
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
     btn.style.pointerEvents = 'none';
-    const textSpan = btn.querySelector('span > span');
+    const textSpan = btn.querySelector('.ca-dynamic-text, .saveSpn, span > span');
     if (textSpan) textSpan.innerText = 'Queuing...';
     
     let jobData = typeof dataGetter === 'function' ? dataGetter() : dataGetter;
@@ -408,6 +432,7 @@ function createSaveButton(text, dataGetter, unstyled = false) {
     btn.style.padding = '0 16px';
     btn.style.fontWeight = '600';
     btn.style.fontSize = '14px';
+    btn.style.fontFamily = '"Outfit", "Google Sans", sans-serif';
     btn.style.display = 'inline-flex';
     btn.style.alignItems = 'center';
     btn.style.justifyContent = 'center';
@@ -529,15 +554,12 @@ injectCareerAgentButton();
 
 function injectToastStyles() {
   if (!document.getElementById('ca-toast-styles')) {
-    const link = document.createElement('link');
-    link.id = 'ca-google-sans';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap';
-    document.head.appendChild(link);
-    
     const style = document.createElement('style');
     style.id = 'ca-toast-styles';
+    // Import Outfit from Google Fonts (looks very similar to Google Sans/Product Sans)
     style.innerHTML = `
+      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap');
+      
       .ca-checkmark-circle {
         stroke-dasharray: 166;
         stroke-dashoffset: 166;
@@ -568,6 +590,7 @@ function injectToastStyles() {
 // Toast Notification System
 // ----------------------------------------------------------------------
 function showToast(message, duration = 4000) {
+  injectToastStyles();
   let container = document.getElementById('ca-toast-container');
   if (!container) {
     container = document.createElement('div');
@@ -591,7 +614,7 @@ function showToast(message, duration = 4000) {
   toast.style.padding = '12px 24px';
   toast.style.borderRadius = '8px'; // Standard shape
   toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
-  toast.style.fontFamily = '"Google Sans", "Product Sans", sans-serif';
+  toast.style.fontFamily = '"Outfit", "Google Sans", sans-serif';
   toast.style.fontSize = '14px';
   toast.style.fontWeight = '500';
   toast.style.opacity = '0';
@@ -680,7 +703,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'STOP_AUTO_SCRAPE') {
     isAutoScraping = false;
-    chrome.storage.local.set({ isScraping: false });
+    chrome.storage.local.set({ isScraping: false, pagesScraped: 0 });
     showToast('🛑 Auto-Scrape Stopped.');
     sendResponse({ stopped: true });
     return true;
@@ -689,9 +712,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function startAutoScrape() {
   isAutoScraping = true;
-  chrome.storage.local.set({ isScraping: true });
   
-  showToast('🤖 Auto-Scraper Started! Please do not click anything...');
+  const res = await new Promise(resolve => chrome.storage.local.get(['targetPages', 'pagesScraped'], resolve));
+  const targetPages = res.targetPages || 5;
+  const pagesScraped = res.pagesScraped || 0;
+  
+  showToast(`🤖 Auto-Scraper Started! (Page ${pagesScraped + 1} of ${targetPages}) Please do not click anything...`);
   
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
   
@@ -730,13 +756,76 @@ async function startAutoScrape() {
   }
   
   if (isAutoScraping) {
-    if (savedCount > 0) {
-      showToast(`✅ Auto-Scrape Finished! Saved ${savedCount} jobs to Queue.`);
+    const newPagesScraped = (res.pagesScraped || 0) + 1;
+    
+    if (newPagesScraped < targetPages) {
+      showToast(`✅ Page finished! Moving to next page in 3 seconds...`);
+      chrome.storage.local.set({ pagesScraped: newPagesScraped });
+      
+      await delay(3000);
+      
+      let nextBtn = null;
+      // 1. Naukri pagination (finds the <a> or <button> containing "Next")
+      const elements = Array.from(document.querySelectorAll('a, button'));
+      for (const el of elements) {
+         if (el.innerText && el.innerText.trim().toLowerCase() === 'next') {
+            nextBtn = el;
+            break;
+         }
+      }
+      
+      // 2. LinkedIn pagination fallback
+      if (!nextBtn) {
+         nextBtn = document.querySelector('button[aria-label="Next"]');
+      }
+      
+      if (nextBtn) {
+         nextBtn.click();
+         
+         // In Single Page Applications (like Naukri), clicking Next doesn't reload the page.
+         // We must poll until the new job cards render and our script injects new unclicked buttons.
+         let attempts = 0;
+         const checkReady = setInterval(() => {
+           attempts++;
+           const unclickedButtons = document.querySelectorAll('.ca-save-btn:not([style*="pointer-events: none"])');
+           if (unclickedButtons.length > 0 || attempts > 15) {
+             clearInterval(checkReady);
+             if (isAutoScraping) startAutoScrape(); // Restart the scraping engine for the new page
+           }
+         }, 1000);
+         
+         return; // Exit current engine instance
+
+      } else {
+         showToast(`🛑 No 'Next' button found! Stopping auto-scrape.`);
+         isAutoScraping = false;
+         chrome.storage.local.set({ isScraping: false, pagesScraped: 0 });
+      }
     } else {
-      showToast(`🤖 Auto-Scrape Finished! No new jobs found on this page.`);
+      showToast(`🎉 Auto-Scrape complete! Scraped ${targetPages} pages.`);
+      isAutoScraping = false;
+      chrome.storage.local.set({ isScraping: false, pagesScraped: 0 });
     }
   }
   
-  isAutoScraping = false;
-  chrome.storage.local.set({ isScraping: false });
+  // Only reset if we didn't return early (e.g., manually stopped or finished)
+  if (!isAutoScraping) {
+    chrome.storage.local.set({ isScraping: false });
+  }
 }
+
+// Auto-resume scraping if page navigates while isScraping is active
+chrome.storage.local.get(['isScraping'], (res) => {
+  if (res.isScraping) {
+    let attempts = 0;
+    const checkReady = setInterval(() => {
+      attempts++;
+      const buttons = document.querySelectorAll('.ca-save-btn');
+      // Wait for at least one button to be injected, or timeout after 15 seconds
+      if (buttons.length > 0 || attempts > 15) {
+        clearInterval(checkReady);
+        if (!isAutoScraping) startAutoScrape();
+      }
+    }, 1000);
+  }
+});
