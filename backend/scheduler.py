@@ -28,8 +28,16 @@ class RunLogCaptureHandler(logging.Handler):
 def _scheduled_scrape():
     """Run the scraper from a self-managed DB session (no request context)."""
     db = SessionLocal()
+
+    # A manual run (or a previous cron tick that's still going) can otherwise overlap
+    # with this one and hit SQLite write contention / duplicate job commits.
+    if crud.has_running_scrape(db):
+        logger.warning("Skipping scheduled scrape — a scrape is already RUNNING.")
+        db.close()
+        return
+
     log = crud.create_scraper_log(db, schemas.ScraperLogBase(jobs_found=0, status="RUNNING", trigger_source="CRON"))
-    
+
     capture_handler = RunLogCaptureHandler()
     capture_handler.setLevel(logging.INFO)
     logging.getLogger().addHandler(capture_handler)

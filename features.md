@@ -5,7 +5,11 @@ CareerAgent is an open-source, AI-powered job search automation platform built s
 ## 1. Automated Job Discovery & Scraping
 - **Headless Browser Scraping**: Uses Playwright to render and scrape dynamic JavaScript-heavy ATS platforms (Greenhouse, Lever, Workday).
 - **Background Cron Scheduler**: Configurable recurring scraping intervals (e.g., every 12 or 24 hours) running entirely in the background.
-- **Companion Chrome Extension**: A lightweight browser extension allowing 1-click job saving directly from job boards like LinkedIn and Indeed directly into your pipeline.
+- **Companion Chrome Extension**: A powerful browser extension bridging the gap for highly bot-protected sites (LinkedIn, Naukri, Indeed):
+  - **Auto-Scraping & Pagination**: Built-in polling engine that automatically scans cards, extracts data, and navigates across multiple pages in Single Page Applications (SPAs) without human intervention.
+  - **Dynamic UI Camouflage**: Injects "Agent Save" buttons that perfectly inherit the native CSS and DOM structure of the host site, blending seamlessly into any job board.
+  - **Silent JD Fetching**: Automatically fetches the full Job Description in the background when saving directly from a list view (bypassing the need to manually open each job).
+  - **Local Queue & Batch Processing**: Queues scraped jobs locally within the extension and syncs them to the backend in batches to respect API limits and optimize performance.
 
 ## 2. Advanced AI Engine
 - **Bring Your Own Keys (Free or Paid)**: Use any AI you prefer! Bring your own OpenAI or Anthropic keys, or use **100% Free AI Processing** with a Google AI Studio key. CareerAgent natively manages Google's strict free tier rate limits (**15 RPM / 1500 RPD for Gemma 4**, **15 RPM / 500 RPD for Gemini 3.1 Flash Lite**, **5 RPM / 20 RPD for Gemini 3.5 Flash**) so you can automate your search for $0. *(Disclaimer: Google uses free tier data for training. For complete privacy, run Ollama locally!)*
