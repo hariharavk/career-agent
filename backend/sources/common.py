@@ -212,9 +212,15 @@ def get_active_companies(db: Session) -> List[str]:
     except Exception:
         return []
 
-def commit_jobs(db: Session, jobs: list):
+def commit_jobs(db: Session, jobs: list) -> bool:
+    """Persist collected jobs. Returns False if the commit failed — jobs were NOT saved.
+
+    Previously this swallowed the exception with only a log line, so a DB write failure
+    (locked file, disk full) looked identical to success everywhere downstream: the caller
+    still counted those jobs as "found" even though nothing was persisted.
+    """
     if not jobs:
-        return
+        return True
     unique_jobs = {}
     for job in jobs:
         unique_jobs[job["url"]] = job
@@ -226,6 +232,8 @@ def commit_jobs(db: Session, jobs: list):
     try:
         db.commit()
         logger.info(f"Successfully committed {len(unique_jobs)} new jobs to the database.")
+        return True
     except Exception as e:
         db.rollback()
         logger.error(f"Failed to commit jobs: {e}")
+        return False

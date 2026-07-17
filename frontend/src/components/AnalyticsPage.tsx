@@ -12,6 +12,9 @@ type TargetHealth = {
   consecutive_failures: number
   success_rate: number
   last_success_at: string | null
+  zero_streak: number
+  historical_avg_jobs_found: number
+  possibly_silent_failure: boolean
 }
 
 /**
@@ -226,9 +229,9 @@ export function AnalyticsPage() {
           className={`px-4 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'health' ? 'bg-red-500/20 text-red-400' : 'text-zinc-500 hover:text-zinc-300'}`}
         >
           Target Health
-          {targetHealth.filter(t => t.consecutive_failures >= 3).length > 0 && (
+          {targetHealth.filter(t => t.consecutive_failures >= 3 || t.possibly_silent_failure).length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
-              {targetHealth.filter(t => t.consecutive_failures >= 3).length}
+              {targetHealth.filter(t => t.consecutive_failures >= 3 || t.possibly_silent_failure).length}
             </span>
           )}
         </button>
@@ -510,7 +513,9 @@ export function AnalyticsPage() {
             </div>
             <p className="text-xs text-zinc-400 mb-6">
               Success rate per company across the last {targetHealth.reduce((a, t) => Math.max(a, t.runs_seen), 0) || 20} scrape runs.
-              A company failing several runs in a row usually means its site markup changed.
+              A company failing several runs in a row usually means its site markup changed —
+              but a broken selector often doesn't throw at all, it just quietly returns 0 jobs.
+              The <span className="text-violet-400 font-semibold">violet</span> flag below catches that case too.
             </p>
 
             {targetHealth.length === 0 ? (
@@ -520,11 +525,13 @@ export function AnalyticsPage() {
                 {targetHealth.map(t => {
                   const isBroken = t.consecutive_failures >= 3
                   const isWarning = t.consecutive_failures > 0 && t.consecutive_failures < 3
+                  const isSilentFailure = t.possibly_silent_failure
                   return (
                     <div
                       key={t.company}
                       className={`p-4 rounded-xl border flex flex-col gap-1.5 ${
                         isBroken ? "bg-red-900/10 border-red-500/20" :
+                        isSilentFailure ? "bg-violet-900/10 border-violet-500/20" :
                         isWarning ? "bg-amber-900/10 border-amber-500/20" :
                         "bg-black/30 border-white/5"
                       }`}
@@ -532,6 +539,7 @@ export function AnalyticsPage() {
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-sm text-white flex items-center gap-1.5">
                           {isBroken && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
+                          {!isBroken && isSilentFailure && <AlertTriangle className="w-3.5 h-3.5 text-violet-400" />}
                           {t.company}
                         </span>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
@@ -552,6 +560,11 @@ export function AnalyticsPage() {
                           </span>
                         )}
                       </div>
+                      {isSilentFailure && (
+                        <p className="text-[11px] text-violet-400 font-semibold">
+                          ⚠ {t.zero_streak} runs in a row found 0 jobs — normally averages {t.historical_avg_jobs_found}. Likely a broken selector, not a real dry spell.
+                        </p>
+                      )}
                       {t.last_status === "FAILED" && t.last_message && (
                         <p className="text-[11px] text-zinc-500 font-mono truncate" title={t.last_message}>
                           {t.last_message}

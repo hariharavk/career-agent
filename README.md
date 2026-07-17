@@ -10,7 +10,7 @@
   [![GitHub Forks](https://img.shields.io/github/forks/hariharavk/career-agent.svg?style=for-the-badge&color=blue)](https://github.com/hariharavk/career-agent/network/members)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
   [![React](https://img.shields.io/badge/React-19-blue.svg?style=for-the-badge&logo=react)](https://react.dev/)
-  [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.138-green.svg?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
   [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
   <p align="center">
@@ -61,8 +61,6 @@ graph TD
         Ext[Chrome Extension]:::frontend
         LinkedIn[Job Boards<br>LinkedIn/Naukri]:::frontend
         Ext -.->|Injects Agent UI &<br>Extracts JD DOM| LinkedIn
-        UI <-->|REST API| API
-        Ext -->|Syncs Scraped Jobs<br>Batch Processing| API
     end
 
     subgraph "Server Side"
@@ -75,9 +73,16 @@ graph TD
     subgraph "AI Engine"
         LLM[Multi-LLM Manager<br>Gemini / OpenAI / Ollama]:::ai
         Compiler[LaTeX PDF Compiler]:::ai
-        API <-->|Extracts Competencies &<br>Scores Match| LLM
         LLM -->|Injects Keywords| Compiler
     end
+
+    %% Cross-subgraph edges must live outside every subgraph block — Mermaid assigns a
+    %% node's subgraph membership to wherever it's FIRST referenced (edge or declaration),
+    %% so an edge to API placed inside "Client Side" would silently render API inside the
+    %% wrong box even though it's declared under "Server Side".
+    UI <-->|REST API| API
+    Ext -->|Syncs Scraped Jobs<br>Batch Processing| API
+    API <-->|Extracts Competencies &<br>Scores Match| LLM
 ```
 
 ## 🚀 Getting Started

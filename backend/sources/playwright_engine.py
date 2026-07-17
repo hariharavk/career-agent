@@ -114,9 +114,16 @@ async def dismiss_popups(page) -> None:
         pass
 
 
-async def extract_playwright_jobs(page, keyword: str, source_url: str, max_pages: int = 10, infinite_scroll: bool = False, job_url_pattern: str = None, next_btn_selector: str = None, force_url_pagination: bool = False) -> List[Dict[str, str]]:
-    """Pull all links from a rendered page (with pagination or infinite scroll) and let Gemini filter."""
+async def extract_playwright_jobs(page, keyword: str, source_url: str, max_pages: int = 10, infinite_scroll: bool = False, job_url_pattern: str = None, next_btn_selector: str = None, force_url_pagination: bool = False):
+    """Pull all links from a rendered page (with pagination or infinite scroll) and let Gemini filter.
+
+    Returns (jobs, error). `jobs` holds whatever was collected before a failure — a mid-run
+    error doesn't discard already-found results. But unlike before, `error` is no longer
+    swallowed here: the caller decides what a failed extraction means for this company's
+    reported status, rather than it silently looking identical to "found 0 jobs, all good".
+    """
     jobs, seen = [], set()
+    error = None
 
     try:
         for i in range(max_pages): # Scrape up to max_pages
@@ -317,9 +324,79 @@ async def extract_playwright_jobs(page, keyword: str, source_url: str, max_pages
 
     except Exception as e:
         logger.error(f"Playwright extraction/pagination failed: {e}")
+        error = e
 
     logger.info(f"Raw link extraction yielded {len(jobs)} candidates from {page.url}")
-    return jobs
+    return jobs, error
+
+# Broad, near-universal job-title words. Used only as a diagnostic probe (see
+# probe_extraction_pipeline below) — not meant to find real matches, just to prove the
+# search + selector + pagination pipeline can still find *something*.
+CANARY_KEYWORDS = ("engineer", "manager", "analyst")
+
+async def probe_extraction_pipeline(page, company: str, url_template: str, search_input_selector: str = None,
+                                     search_btn_selector: str = None, no_results_text: str = "0 results",
+                                     job_url_pattern: str = None, next_btn_selector: str = None,
+                                     force_url_pagination: bool = False) -> bool:
+    """After a company's real keywords all found 0 jobs, this answers: is that a real dry
+    spell, or did the scraper break (selector changed, site redesigned) without raising?
+
+    A broken selector/site redesign usually doesn't throw — extract_playwright_jobs just
+    quietly returns an empty list, which looks identical to "no matching jobs today"
+    everywhere downstream. Re-running the search with a generic, near-universal term
+    (CANARY_KEYWORDS) gives a direct answer instead of waiting on statistics: if even
+    "engineer"/"manager"/"analyst" turns up nothing, the pipeline itself is what's broken.
+
+    Deliberately cheap: max_pages=1 (we only need evidence something exists, not an
+    exhaustive count) and stops at the first canary term that finds anything.
+
+    Returns True if the pipeline looks healthy (a canary term found ≥1 raw link), False if
+    every canary term also found nothing. Any exception during the probe itself is treated
+    as inconclusive (returns True) — a flaky diagnostic shouldn't manufacture a false alert
+    on top of whatever the real run already reported.
+    """
+    for canary in CANARY_KEYWORDS:
+        try:
+            if search_input_selector:
+                url = url_template.split('?')[0]
+            else:
+                url = url_template.replace("{keyword}", urllib.parse.quote(canary))
+
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+
+            if search_input_selector:
+                await dismiss_popups(page)
+                input_loc = page.locator(search_input_selector)
+                await input_loc.fill(canary, timeout=10000)
+                await page.wait_for_timeout(500)
+                if search_btn_selector:
+                    await page.locator(search_btn_selector).click()
+                else:
+                    await input_loc.press("Enter")
+                await page.wait_for_timeout(5000)
+            else:
+                await page.wait_for_timeout(5000)
+
+            await dismiss_popups(page)
+            content = (await page.content()).lower()
+            if no_results_text.lower() in content:
+                continue
+
+            jobs, _ = await extract_playwright_jobs(
+                page, canary, url, max_pages=1,
+                job_url_pattern=job_url_pattern,
+                next_btn_selector=next_btn_selector,
+                force_url_pagination=force_url_pagination,
+            )
+            if jobs:
+                logger.info(f"[{company}] Canary probe ('{canary}') found {len(jobs)} link(s) — extraction pipeline looks healthy; today's 0 real matches is likely genuine.")
+                return True
+        except Exception as e:
+            logger.debug(f"[{company}] Canary probe ('{canary}') itself failed, treating as inconclusive: {e}")
+            return True
+
+    logger.warning(f"[{company}] Canary probe found 0 links across all generic terms {CANARY_KEYWORDS} — likely a broken selector, not a real dry spell.")
+    return False
 
 async def fetch_job_descriptions_httpx(urls: List[str]) -> Dict[str, str]:
     """Fetch visible text from a batch of URLs using fast httpx concurrency."""
@@ -543,8 +620,13 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                                             j["href"] = urllib.parse.urljoin(response.url, href_str)
                                 if jobs:
                                     api_extracted_jobs.extend(jobs)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # This fires on every xhr/fetch response, most of which aren't job data,
+                    # so most failures here are benign (non-JSON body, etc). Debug-only, but
+                    # no longer a fully silent pass — turn on debug_logging_enabled in Settings
+                    # to see if this interceptor (the primary discovery path for some
+                    # companies, e.g. Infosys/HCLTech) is actually breaking vs. just not matching.
+                    logger.debug(f"[{company}] Response interceptor error on {response.url[:100]}: {e}")
             page.on("response", intercept_json_responses)
 
             logger.info(f"Scraping playwright board for {company}...")
@@ -580,7 +662,7 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
 
                     content = (await page.content()).lower()
                     if no_results_text not in content:
-                        intersect_extracted = await extract_playwright_jobs(
+                        intersect_extracted, intersect_error = await extract_playwright_jobs(
                             page, "intersection", intersect_with, max_pages=max_pages_limit,
                             infinite_scroll=infinite_scroll,
                             job_url_pattern=job_url_pattern,
@@ -590,6 +672,10 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                         if intersect_extracted:
                             for job in intersect_extracted:
                                 intersect_seen.add(job["href"])
+                        # Soft-fail: the intersection pass is an optional refinement, not the
+                        # main discovery path, so log but don't mark the whole company FAILED.
+                        if intersect_error:
+                            logger.warning(f"[{company}] Intersection extraction hit an error (continuing with {len(intersect_seen)} URLs found so far): {intersect_error}")
                     logger.info(f"[{company}] Intersection pass found {len(intersect_seen)} URLs")
                 except Exception as e:
                     logger.error(f"[{company}] Intersection pass failed: {e}")
@@ -606,6 +692,7 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
 
                 new_from_keyword = 0
                 extracted = []
+                extraction_error = None
                 try:
                     if company == "Infosys":
                         async def intercept_infosys(route, request):
@@ -684,7 +771,7 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                     if no_results_text in content:
                         logger.debug(f"[{company}] No results for keyword '{keyword}' (found no_results_text)")
                     else:
-                        extracted = await extract_playwright_jobs(
+                        extracted, extraction_error = await extract_playwright_jobs(
                             page, keyword, url, max_pages=max_pages_limit,
                             infinite_scroll=infinite_scroll,
                             job_url_pattern=job_url_pattern,
@@ -738,6 +825,12 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                         api_extracted_jobs.clear()
 
                         logger.debug(f"[{company}] keyword='{keyword}': {len(extracted or [])} raw links, {new_from_keyword} new added")
+
+                    # Process whatever partial DOM-scraped and interceptor-caught results came
+                    # back above, THEN surface the error — an extraction failure must not look
+                    # identical to "0 jobs, all good" in company_logs / the target-health rollup.
+                    if extraction_error:
+                        raise extraction_error
                 except Exception as e:
                     logger.error(f"Playwright error {company}: {e}")
                     has_error = True
@@ -748,6 +841,28 @@ async def process_playwright(db: Session, targets: List[dict], keywords: List[st
                             await page.unroute("**/getCareerSearchJobs**")
                         except Exception:
                             pass
+
+            # All real keywords found nothing, and nothing raised — ambiguous: could be a
+            # genuine dry spell, could be a selector that broke silently. Ask directly rather
+            # than waiting on the statistical zero_streak signal (backend/crud.py) to
+            # accumulate 3 runs of history before flagging it.
+            if not has_error and jobs_found_count == 0:
+                try:
+                    pipeline_healthy = await probe_extraction_pipeline(
+                        page, company, url_template,
+                        search_input_selector=search_input_selector,
+                        search_btn_selector=search_btn_selector,
+                        no_results_text=no_results_text,
+                        job_url_pattern=job_url_pattern,
+                        next_btn_selector=next_btn_selector,
+                        force_url_pagination=force_url_pagination,
+                    )
+                except Exception as e:
+                    logger.debug(f"[{company}] Canary probe crashed, treating as inconclusive: {e}")
+                    pipeline_healthy = True
+                if not pipeline_healthy:
+                    has_error = True
+                    error_msg = "0 jobs found for all real keywords, and the canary probe (generic terms) also found nothing — likely a broken selector, not a real dry spell."
 
             if has_error:
                 company_logs.append({"company": company, "status": "FAILED", "jobs_found": jobs_found_count, "message": error_msg})

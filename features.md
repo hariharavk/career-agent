@@ -34,7 +34,9 @@ CareerAgent is an open-source, AI-powered job search automation platform built s
 - **Soft Deletes**: "Trash" state for jobs with a configurable retention policy (e.g., permanently delete after 30 days) to keep your pipeline clean.
 
 ## 6. Real-time Notifications & Integrations
-- **Telegram Push Alerts**: Connect a custom Telegram bot to instantly receive push notifications on your phone whenever a high-match job is discovered by the background scraper.
+- **Live Log Streaming**: A WebSocket-backed live log tail in the UI, plus every scrape run's full console output and per-company results are persisted to the database, so nothing is lost between runs.
+- **Target Health Rollup**: The Analytics page tracks per-company scrape success rate and consecutive-failure streaks across recent runs, surfacing targets whose scraper likely broke (e.g. a site's markup changed) instead of silently returning 0 jobs forever.
+- **Telegram Push Alerts (planned, not yet implemented)**: Settings has fields to configure a Telegram bot token/chat ID, encrypted at rest — but no backend logic currently sends a message. See [ROADMAP.md](ROADMAP.md) for the plan to wire this up.
 
 ## 7. Security & Privacy
 - **Encrypted Secrets**: Sensitive credentials (like Gemini API keys and Telegram Bot tokens) are encrypted at rest in the SQLite database using Fernet symmetric encryption.

@@ -197,8 +197,12 @@ def run_scraper(db: Session):
             logger.info(f"[{company}] Done → {status}, {links_found} candidate links collected")
 
         if new_jobs:
-            commit_jobs(db, new_jobs)
-            all_new_jobs.extend(new_jobs)
+            if commit_jobs(db, new_jobs):
+                all_new_jobs.extend(new_jobs)
+            else:
+                # Don't count these as "found" — they were never actually persisted,
+                # and bulk_evaluate_jobs would just silently skip them anyway.
+                company_logs.append({"company": "Database commit", "status": "FAILED", "jobs_found": 0, "message": f"Failed to commit {len(new_jobs)} scraped job(s) to the database."})
             new_jobs.clear()
 
     if playwright_targets:
@@ -210,8 +214,12 @@ def run_scraper(db: Session):
             logger.error(f"Playwright stage failed, continuing with API-sourced jobs: {e}")
             company_logs.append({"company": "Playwright stage", "status": "FAILED", "jobs_found": 0, "message": str(e)})
         if new_jobs:
-            commit_jobs(db, new_jobs)
-            all_new_jobs.extend(new_jobs)
+            if commit_jobs(db, new_jobs):
+                all_new_jobs.extend(new_jobs)
+            else:
+                # Don't count these as "found" — they were never actually persisted,
+                # and bulk_evaluate_jobs would just silently skip them anyway.
+                company_logs.append({"company": "Database commit", "status": "FAILED", "jobs_found": 0, "message": f"Failed to commit {len(new_jobs)} scraped job(s) to the database."})
             new_jobs.clear()
 
     # BULK AI FILTERING & COMMIT

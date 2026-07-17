@@ -46,7 +46,7 @@ if _log_level == logging.DEBUG:
 
 
 
-from . import models, schemas, crud, scheduler, ai_agent, auth
+from . import models, schemas, crud, scheduler, ai_agent, auth, notifications
 from .database import engine, get_db, SessionLocal
 import json
 from .scraper_core import run_scraper, load_targets, fetch_job_description, record_job
@@ -209,10 +209,12 @@ def bg_scrape_task():
             logger.info(f"Background scrape completed successfully. Found {len(new_jobs)} new jobs.")
             raw_logs_str = "\n".join(capture_handler.logs)
             crud.update_scraper_log(db, log.id, jobs_found=len(new_jobs), status="SUCCESS", detailed_logs=json.dumps(company_logs), raw_logs=raw_logs_str)
+            notifications.notify_broken_targets(db)
         except Exception as e:
             raw_logs_str = "\n".join(capture_handler.logs)
             crud.update_scraper_log(db, log.id, status="FAILED", error_message=str(e), raw_logs=raw_logs_str)
             logger.error(f"Background scrape failed: {e}")
+            notifications.notify_scrape_run_failed(db, str(e), "MANUAL")
     finally:
         logging.getLogger().removeHandler(capture_handler)
         db.close()

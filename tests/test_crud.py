@@ -105,3 +105,46 @@ def test_get_target_health_ignores_logs_without_detailed_logs(db_session):
     db_session.add(log)
     db_session.commit()
     assert crud.get_target_health(db_session) == []
+
+
+# ── get_target_health: silent failures (SUCCESS status, suspiciously 0 jobs) ───
+
+def test_get_target_health_flags_silent_failure_after_healthy_history(db_session):
+    # A company that reliably found ~10 jobs, then quietly started returning 0 — no
+    # exception anywhere, status stays SUCCESS throughout. This is the failure mode
+    # consecutive_failures can never catch.
+    for days_ago in (6, 5, 4):
+        _make_scraper_log(db_session, days_ago, [{"company": "Wells Fargo", "status": "SUCCESS", "jobs_found": 10}])
+    for days_ago in (3, 2, 1):
+        _make_scraper_log(db_session, days_ago, [{"company": "Wells Fargo", "status": "SUCCESS", "jobs_found": 0}])
+
+    health = crud.get_target_health(db_session)
+    wf = next(h for h in health if h["company"] == "Wells Fargo")
+    assert wf["consecutive_failures"] == 0  # never actually failed
+    assert wf["zero_streak"] == 3
+    assert wf["historical_avg_jobs_found"] == 10.0
+    assert wf["possibly_silent_failure"] is True
+
+def test_get_target_health_does_not_flag_a_company_with_no_healthy_history(db_session):
+    # Always 0 jobs, no prior positive baseline — could just be a company that
+    # rarely posts roles. Shouldn't be flagged as "silently broken".
+    for days_ago in (3, 2, 1):
+        _make_scraper_log(db_session, days_ago, [{"company": "SmallCo", "status": "SUCCESS", "jobs_found": 0}])
+
+    health = crud.get_target_health(db_session)
+    small = next(h for h in health if h["company"] == "SmallCo")
+    assert small["zero_streak"] == 3
+    assert small["historical_avg_jobs_found"] == 0.0
+    assert small["possibly_silent_failure"] is False
+
+def test_get_target_health_does_not_flag_below_zero_streak_threshold(db_session):
+    for days_ago in (5, 4, 3):
+        _make_scraper_log(db_session, days_ago, [{"company": "Acme", "status": "SUCCESS", "jobs_found": 8}])
+    # Only 2 zero-runs — below ZERO_STREAK_ALERT_THRESHOLD (3).
+    for days_ago in (2, 1):
+        _make_scraper_log(db_session, days_ago, [{"company": "Acme", "status": "SUCCESS", "jobs_found": 0}])
+
+    health = crud.get_target_health(db_session)
+    acme = next(h for h in health if h["company"] == "Acme")
+    assert acme["zero_streak"] == 2
+    assert acme["possibly_silent_failure"] is False
